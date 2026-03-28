@@ -2,6 +2,8 @@
 set -eu
 
 echo "[docker-entrypoint] Starting runtime initialization..."
+echo "[docker-entrypoint] Running as user: $(id -u):$(id -g)"
+echo "[docker-entrypoint] Command to execute: $*"
 
 if [ -d /data ]; then
   echo "[docker-entrypoint] Preparing /data volume..."
@@ -9,6 +11,7 @@ if [ -d /data ]; then
   chown -R node:node /data
   chmod 755 /data /data/.openclaw /data/workspace
   echo "[docker-entrypoint] /data permissions fixed"
+  ls -ld /data /data/.openclaw /data/workspace || true
 else
   echo "[docker-entrypoint] /data does not exist, skipping volume initialization"
 fi
@@ -20,4 +23,5 @@ else
   echo "[docker-entrypoint] NODE_OPTIONS not set"
 fi
 
+echo "[docker-entrypoint] Handing off to gosu..."
 exec gosu node "$@"
