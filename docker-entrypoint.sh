@@ -1,23 +1,34 @@
 #!/bin/sh
 set -eu
 
-echo "[docker-entrypoint] Starting runtime initialization..."
+LOG_FILE=/tmp/openclaw-startup.log
 
-if [ -d /data ]; then
-  echo "[docker-entrypoint] Preparing /data volume..."
-  mkdir -p /data/.openclaw /data/workspace
-  chown -R node:node /data
-  chmod 755 /data /data/.openclaw /data/workspace
-  echo "[docker-entrypoint] /data permissions fixed"
-else
-  echo "[docker-entrypoint] /data does not exist, skipping volume initialization"
-fi
+echo "[docker-entrypoint] Starting runtime initialization..."
+echo "[docker-entrypoint] Running as user: $(id -u):$(id -g)"
+echo "[docker-entrypoint] Command to execute: $*"
+
+echo "[docker-entrypoint] Preparing /data volume..."
+mkdir -p /data /data/.openclaw /data/workspace
+chown -R node:node /data
+
+ls -ld /data /data/.openclaw /data/workspace || true
 
 if [ -n "${NODE_OPTIONS:-}" ]; then
-  export NODE_OPTIONS
-  echo "[docker-entrypoint] NODE_OPTIONS detected: $NODE_OPTIONS"
-else
-  echo "[docker-entrypoint] NODE_OPTIONS not set"
+  echo "[docker-entrypoint] NODE_OPTIONS detected: ${NODE_OPTIONS}"
 fi
 
-exec gosu node "$@"
+echo "[docker-entrypoint] Capturing OpenClaw output to ${LOG_FILE}"
+set +e
+gosu node "$@" >"${LOG_FILE}" 2>&1
+code=$?
+set -e
+
+echo "[docker-entrypoint] OpenClaw process exited with code: ${code}"
+echo "[docker-entrypoint] ===== BEGIN CAPTURED OPENCLAW LOG ====="
+cat "${LOG_FILE}" || true
+echo "[docker-entrypoint] ===== END CAPTURED OPENCLAW LOG ====="
+
+echo "[docker-entrypoint] Sleeping for 600 seconds so the container stays alive for debugging..."
+sleep 600
+
+exit "${code}"
