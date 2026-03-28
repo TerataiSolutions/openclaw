@@ -1,34 +1,21 @@
-#!/bin/sh
-set -eu
+FROM node:20-bookworm-slim
 
-LOG_FILE=/tmp/openclaw-startup.log
+WORKDIR /app
 
-echo "[docker-entrypoint] Starting runtime initialization..."
-echo "[docker-entrypoint] Running as user: $(id -u):$(id -g)"
-echo "[docker-entrypoint] Command to execute: $*"
+ENV NODE_ENV=production
 
-mkdir -p /data /data/.openclaw /data/workspace
-chown -R node:node /data
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-echo "[docker-entrypoint] /data permissions fixed"
-ls -ld /data /data/.openclaw /data/workspace || true
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-if [ -n "${NODE_OPTIONS:-}" ]; then
-  echo "[docker-entrypoint] NODE_OPTIONS detected: ${NODE_OPTIONS}"
-fi
+COPY . .
 
-echo "[docker-entrypoint] Capturing OpenClaw output to ${LOG_FILE}"
-set +e
-gosu node "$@" >"${LOG_FILE}" 2>&1
-code=$?
-set -e
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-echo "[docker-entrypoint] OpenClaw process exited with code: ${code}"
-echo "[docker-entrypoint] ===== BEGIN CAPTURED OPENCLAW LOG ====="
-cat "${LOG_FILE}" || true
-echo "[docker-entrypoint] ===== END CAPTURED OPENCLAW LOG ====="
-
-echo "[docker-entrypoint] Sleeping for 600 seconds so the container stays alive for debugging..."
-sleep 600
-
-exit "${code}"
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
