@@ -3,6 +3,7 @@ set -eu
 
 LOG_FILE=/tmp/openclaw-startup.log
 
+echo "[docker-entrypoint] VERSION MARKER: ENTRYPOINT_V2_20260328"
 echo "[docker-entrypoint] Starting runtime initialization..."
 echo "[docker-entrypoint] Running as user: $(id -u):$(id -g)"
 echo "[docker-entrypoint] Command to execute: $*"
