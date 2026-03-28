@@ -12,7 +12,7 @@ RUN corepack enable
 
 COPY . .
 
-RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
+RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
 ENV NODE_ENV=production
