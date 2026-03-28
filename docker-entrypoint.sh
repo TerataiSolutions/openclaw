@@ -11,6 +11,7 @@ echo "[docker-entrypoint] Preparing /data volume..."
 mkdir -p /data /data/.openclaw /data/workspace
 chown -R node:node /data
 
+echo "[docker-entrypoint] /data permissions fixed"
 ls -ld /data /data/.openclaw /data/workspace || true
 
 if [ -n "${NODE_OPTIONS:-}" ]; then
