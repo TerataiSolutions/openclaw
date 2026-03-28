@@ -7,7 +7,6 @@ echo "[docker-entrypoint] Starting runtime initialization..."
 echo "[docker-entrypoint] Running as user: $(id -u):$(id -g)"
 echo "[docker-entrypoint] Command to execute: $*"
 
-echo "[docker-entrypoint] Preparing /data volume..."
 mkdir -p /data /data/.openclaw /data/workspace
 chown -R node:node /data
 
