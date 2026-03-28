@@ -10,6 +10,7 @@ OPENCLAW_DIR="$DATA_DIR/.openclaw"
 WORKSPACE_DIR="$DATA_DIR/workspace"
 CONFIG_FILE="$OPENCLAW_DIR/openclaw.json"
 
+log "PATCH-V2 entrypoint loaded"
 log "Starting runtime initialization..."
 log "Running as user: $(id -u):$(id -g)"
 
