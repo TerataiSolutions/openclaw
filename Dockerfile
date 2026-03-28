@@ -226,6 +226,11 @@ RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw \
 
 ENV NODE_ENV=production
 
+# Initialize volume directories with proper permissions
+RUN mkdir -p /data/.openclaw /data/workspace && \
+    chown -R node:node /data && \
+    chmod -R 755 /data
+
 # Security hardening: Run as non-root user
 # The node:24-bookworm image includes a 'node' user (uid 1000)
 # This reduces the attack surface by preventing container escape via root privileges
