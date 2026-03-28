@@ -20,6 +20,11 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 RUN pnpm build
+RUN pnpm ui:build
+RUN echo "===== VERIFY CONTROL UI BUILD OUTPUT =====" \
+ && ls -la /app/dist || true \
+ && ls -la /app/dist/control-ui || true \
+ && test -f /app/dist/control-ui/index.html
 
 ENV NODE_ENV=production
 
