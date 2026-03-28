@@ -37,7 +37,7 @@ RUN mkdir -p /out && \
       fi; \
     done
 
-# ── Stage 2: Build ──────────────────────────────────────────────
+# Stage 2: Build
 FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS build
 
 # Install Bun (required for build scripts). Retry the whole bootstrap flow to
@@ -89,7 +89,6 @@ RUN pnpm canvas:a2ui:bundle || \
      echo "stub" > src/canvas-host/a2ui/.bundle.hash && \
      rm -rf vendor/a2ui apps/shared/OpenClawKit/Tools/CanvasA2UI)
 RUN pnpm build:docker
-# Force pnpm for UI build (Bun may fail on ARM/Synology architectures)
 ENV OPENCLAW_PREFER_PNPM=1
 RUN pnpm ui:build
 
@@ -99,7 +98,7 @@ FROM build AS runtime-assets
 RUN CI=true pnpm prune --prod && \
     find dist -type f \( -name '*.d.ts' -o -name '*.d.mts' -o -name '*.d.cts' -o -name '*.map' \) -delete
 
-# ── Runtime base images ─────────────────────────────────────────
+# Runtime base images
 FROM ${OPENCLAW_NODE_BOOKWORM_IMAGE} AS base-default
 ARG OPENCLAW_NODE_BOOKWORM_DIGEST
 LABEL org.opencontainers.image.base.name="docker.io/library/node:24-bookworm" \
@@ -110,15 +109,11 @@ ARG OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST
 LABEL org.opencontainers.image.base.name="docker.io/library/node:24-bookworm-slim" \
   org.opencontainers.image.base.digest="${OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST}"
 
-# ── Stage 3: Runtime ────────────────────────────────────────────
+# Stage 3: Runtime
 FROM base-${OPENCLAW_VARIANT}
 ARG OPENCLAW_VARIANT
 ARG OPENCLAW_DOCKER_APT_UPGRADE
 
-# OCI base-image metadata for downstream image consumers.
-# If you change these annotations, also update:
-# - docs/install/docker.md ("Base image metadata" section)
-# - https://docs.openclaw.ai/install/docker
 LABEL org.opencontainers.image.source="https://github.com/openclaw/openclaw" \
   org.opencontainers.image.url="https://openclaw.ai" \
   org.opencontainers.image.documentation="https://docs.openclaw.ai/install/docker" \
@@ -128,16 +123,12 @@ LABEL org.opencontainers.image.source="https://github.com/openclaw/openclaw" \
 
 WORKDIR /app
 
-# Install system utilities present in bookworm but missing in bookworm-slim.
-# On the full bookworm image these are already installed (apt-get is a no-op).
-# Smoke workflows can opt out of distro upgrades to cut repeated CI time while
-# keeping the default runtime image behavior unchanged.
 RUN apt-get update && \
     if [ "${OPENCLAW_DOCKER_APT_UPGRADE}" != "0" ]; then \
       DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends; \
     fi && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      procps hostname curl git lsof openssl
+      procps hostname curl git lsof openssl gosu
 
 RUN chown node:node /app
 
@@ -149,13 +140,8 @@ COPY --from=runtime-assets --chown=node:node /app/extensions ./extensions
 COPY --from=runtime-assets --chown=node:node /app/skills ./skills
 COPY --from=runtime-assets --chown=node:node /app/docs ./docs
 
-# In npm-installed Docker images, prefer the copied source extension tree for
-# bundled discovery so package metadata that points at source entries stays valid.
 ENV OPENCLAW_BUNDLED_PLUGINS_DIR=/app/extensions
 
-# Keep pnpm available in the runtime image for container-local workflows.
-# Use a shared Corepack home so the non-root `node` user does not need a
-# first-run network fetch when invoking pnpm.
 ENV COREPACK_HOME=/usr/local/share/corepack
 RUN install -d -m 0755 "$COREPACK_HOME" && \
     corepack enable && \
@@ -170,18 +156,12 @@ RUN install -d -m 0755 "$COREPACK_HOME" && \
     done && \
     chmod -R a+rX "$COREPACK_HOME"
 
-# Install additional system packages needed by your skills or extensions.
-# Example: docker build --build-arg OPENCLAW_DOCKER_APT_PACKAGES="python3 wget" .
 ARG OPENCLAW_DOCKER_APT_PACKAGES=""
 RUN if [ -n "$OPENCLAW_DOCKER_APT_PACKAGES" ]; then \
       apt-get update && \
       DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $OPENCLAW_DOCKER_APT_PACKAGES; \
     fi
 
-# Optionally install Chromium and Xvfb for browser automation.
-# Build with: docker build --build-arg OPENCLAW_INSTALL_BROWSER=1 ...
-# Adds ~300MB but eliminates the 60-90s Playwright install on every container start.
-# Must run after node_modules COPY so playwright-core is available.
 ARG OPENCLAW_INSTALL_BROWSER=""
 RUN if [ -n "$OPENCLAW_INSTALL_BROWSER" ]; then \
       apt-get update && \
@@ -192,10 +172,6 @@ RUN if [ -n "$OPENCLAW_INSTALL_BROWSER" ]; then \
       chown -R node:node /home/node/.cache/ms-playwright; \
     fi
 
-# Optionally install Docker CLI for sandbox container management.
-# Build with: docker build --build-arg OPENCLAW_INSTALL_DOCKER_CLI=1 ...
-# Adds ~50MB. Only the CLI is installed — no Docker daemon.
-# Required for agents.defaults.sandbox to function in Docker deployments.
 ARG OPENCLAW_INSTALL_DOCKER_CLI=""
 ARG OPENCLAW_DOCKER_GPG_FINGERPRINT="9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
 RUN if [ -n "$OPENCLAW_INSTALL_DOCKER_CLI" ]; then \
@@ -220,29 +196,15 @@ RUN if [ -n "$OPENCLAW_INSTALL_DOCKER_CLI" ]; then \
         docker-ce-cli docker-compose-plugin; \
     fi
 
-# Expose the CLI binary without requiring npm global writes as non-root.
 RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw \
  && chmod 755 /app/openclaw.mjs
 
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
 ENV NODE_ENV=production
 
-# Security hardening: Run as non-root user
-# The node:24-bookworm image includes a 'node' user (uid 1000)
-# This reduces the attack surface by preventing container escape via root privileges
-USER node
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Start gateway server with default config.
-# Binds to loopback (127.0.0.1) by default for security.
-#
-# IMPORTANT: With Docker bridge networking (-p 18789:18789), loopback bind
-# makes the gateway unreachable from the host. Either:
-#   - Use --network host, OR
-#   - Override --bind to "lan" (0.0.0.0) and set auth credentials
-#
-# Built-in probe endpoints for container health checks:
-#   - GET /healthz (liveness) and GET /readyz (readiness)
-#   - aliases: /health and /ready
-# For external access from host/ingress, override bind to "lan" and set auth.
 HEALTHCHECK --interval=3m --timeout=10s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:18789/healthz').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
