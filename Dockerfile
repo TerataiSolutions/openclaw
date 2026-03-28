@@ -21,4 +21,4 @@ COPY railway-debug-entrypoint-v2.sh /usr/local/bin/railway-debug-entrypoint-v2.s
 RUN chmod +x /usr/local/bin/railway-debug-entrypoint-v2.sh
 
 ENTRYPOINT ["/usr/local/bin/railway-debug-entrypoint-v2.sh"]
-CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured"]
+CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan", "--port", "8080"]
