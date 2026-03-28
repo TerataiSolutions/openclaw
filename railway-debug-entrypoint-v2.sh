@@ -4,6 +4,7 @@ set -eu
 LOG_FILE=/tmp/openclaw-startup.log
 
 echo "[railway-debug-entrypoint-v2] VERSION MARKER: ENTRYPOINT_V2_20260328"
+echo "[railway-debug-entrypoint-v2] COMMIT CHECK MARKER 20260328A"
 echo "[railway-debug-entrypoint-v2] Starting runtime initialization..."
 echo "[railway-debug-entrypoint-v2] Running as user: $(id -u):$(id -g)"
 echo "[railway-debug-entrypoint-v2] Command to execute: $*"
