@@ -137,7 +137,7 @@ RUN apt-get update && \
       DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends; \
     fi && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      procps hostname curl git lsof openssl
+      procps hostname curl git lsof openssl gosu
 
 RUN chown node:node /app
 
@@ -224,17 +224,13 @@ RUN if [ -n "$OPENCLAW_INSTALL_DOCKER_CLI" ]; then \
 RUN ln -sf /app/openclaw.mjs /usr/local/bin/openclaw \
  && chmod 755 /app/openclaw.mjs
 
+# Copy entrypoint script to fix mounted volume permissions at runtime
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
 ENV NODE_ENV=production
 
-# Initialize volume directories with proper permissions
-RUN mkdir -p /data/.openclaw /data/workspace && \
-    chown -R node:node /data && \
-    chmod -R 755 /data
-
-# Security hardening: Run as non-root user
-# The node:24-bookworm image includes a 'node' user (uid 1000)
-# This reduces the attack surface by preventing container escape via root privileges
-USER node
+# Use entrypoint to fix /data volume permissions as root before dropping to node user
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Start gateway server with default config.
 # Binds to loopback (127.0.0.1) by default for security.
