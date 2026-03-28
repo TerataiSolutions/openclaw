@@ -24,4 +24,13 @@ else
 fi
 
 echo "[docker-entrypoint] Handing off to gosu..."
-exec gosu node "$@"
+
+set +e
+gosu node "$@"
+status=$?
+
+echo "[docker-entrypoint] OpenClaw process exited with code: $status"
+echo "[docker-entrypoint] Sleeping for 600 seconds so the container stays alive for debugging..."
+sleep 600
+
+exit $status
