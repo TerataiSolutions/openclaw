@@ -23,8 +23,8 @@ RUN pnpm build
 
 ENV NODE_ENV=production
 
-COPY railway-debug-entrypoint-v2.sh /usr/local/bin/railway-debug-entrypoint-v2.sh
-RUN chmod +x /usr/local/bin/railway-debug-entrypoint-v2.sh
+COPY openclaw-entrypoint.sh /usr/local/bin/openclaw-entrypoint.sh
+RUN chmod +x /usr/local/bin/openclaw-entrypoint.sh
 
-ENTRYPOINT ["/usr/local/bin/railway-debug-entrypoint-v2.sh"]
+ENTRYPOINT ["/usr/local/bin/openclaw-entrypoint.sh"]
 CMD ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan", "--port", "8080"]
