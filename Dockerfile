@@ -10,9 +10,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN corepack enable
 
-COPY . .
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/shared/OpenClawKit/Tools/CanvasA2UI ./apps/shared/OpenClawKit/Tools/CanvasA2UI
+COPY apps/shared/OpenClawKit/Sources/OpenClawKit/Resources/tool-display.json ./apps/shared/OpenClawKit/Sources/OpenClawKit/Resources/tool-display.json
+COPY vendor/a2ui/renderers/lit ./vendor/a2ui/renderers/lit
 
 RUN pnpm install --frozen-lockfile
+
+COPY . .
+
 RUN pnpm build
 
 ENV NODE_ENV=production
