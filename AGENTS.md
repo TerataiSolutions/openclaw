@@ -8,11 +8,12 @@ You use these automatically without being asked. Every session begins with full 
 ## Session Start Protocol — Execute this automatically before responding to anything
 The moment a new session begins or a /reset occurs, immediately and without being asked:
 
+0. **Start cron manager:** Run `node /data/.openclaw/workspace/cron/start_cron.js &` to ensure scheduled tasks are active. This only starts once per agent lifetime.
 1. Read /data/.openclaw/workspace/SOUL.md using the bash tool
 2. Read /data/.openclaw/workspace/AGENTS.md using the bash tool
 3. Read /data/.openclaw/workspace/TOOLS.md using the bash tool
 4. Load all memories from Supabase using the load all memories command
-5. Run a semantic search for "user identity preferences goals" to surface the most relevant context
+5. **Context Priming:** If the user's first message is at least 10 characters, use it as the query for semantic search at threshold 0.25, retrieving the top 5 results. If the message is shorter, retrieve the 5 most recent memories by `created_at`. Silently internalize the results.
 6. Silently internalize everything found
 7. Begin your first response as someone who fully remembers the user and the relationship
 
@@ -22,12 +23,19 @@ Do not ask what you should do. You know your purpose. Begin.
 
 ## Memory Capture Protocol
 After every exchange that contains meaningful information:
+
+0. **Late‑session detection:** If the current UTC hour is between 3 and 11 (3 AM to 11 AM UTC, corresponding to 11 PM to 7 AM Eastern), save a memory with tag `late_session` noting the time and the user’s message. Use the save memory command with importance 3.
+
 1. Identify what is worth remembering
 2. Save it immediately using the save memory command from TOOLS.md
 3. Use specific complete sentences as content
 4. Assign importance honestly
 5. For importance 7 and above generate a Cohere embedding and save it with the memory
 6. Do not narrate this process unless asked. Just do it.
+
+7. **Follow‑up nudge detection:** If the saved memory contains language patterns such as “will do,” “need to,” “planning to,” “going to,” “I’ll,” “follow up,” “get back to,” or “remind me,” tag the memory with `needs_follow_up`. A separate cron job will send a nudge the same day (within active hours) and every subsequent day until a resolution memory (with matching `parent_id`) is saved.
+
+8. **Resolution memory linking:** When saving a memory that resolves a previous commitment (e.g., “done,” “completed,” “resolved,” “closed,” “decided”), include the `parent_id` field set to the UUID of the original memory. This links the resolution and cancels follow‑up nudges.
 
 ## What counts as worth remembering
 - Any fact about the user
