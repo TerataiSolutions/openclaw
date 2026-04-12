@@ -2,7 +2,8 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const { clients } = require('../clients/registry.js').clients;
+const { clients } = require('../clients/registry.js');
+const sortedClients = clients.sort((a, b) => a.priority - b.priority);
 const { isActiveHours } = require('../utils.js');
 const { exec } = require('child_process');
 const util = require('util');
@@ -90,12 +91,12 @@ async function main() {
     let nextIndex = 0;
     if (state) {
         // Rotate to next client
-        nextIndex = (state.lastIndex + 1) % clients.length;
+        nextIndex = (state.lastIndex + 1) % sortedClients.length;
         // Check if lastDate is less than 7 days ago; if not, maybe skip?
         // For simplicity, just rotate.
     }
     
-    const client = clients[nextIndex];
+    const client = sortedClients[nextIndex];
     const message = `Client check-in: ${client.name}\nHow is this account performing? Anything to flag?`;
     
     console.log(`Sending client pulse for ${client.name} (index ${nextIndex})...`);

@@ -1,9 +1,39 @@
 module.exports = {
  clients: [
-   { id: 'client_1', name: 'Client_1', tags: ['client', 'client_1'] },
-   { id: 'client_2', name: 'Client_2', tags: ['client', 'client_2'] },
-   { id: 'client_3', name: 'Client_3', tags: ['client', 'client_3'] },
-   { id: 'client_4', name: 'Client_4', tags: ['client', 'client_4'] },
-   { id: 'client_5', name: 'Client_5', tags: ['client', 'client_5'] },
+   {
+     id: 'opp',
+     name: 'OPP Agency',
+     website: 'https://opp.agency/',
+     priority: 1,
+     tags: ['client', 'opp', 'employer']
+   },
+   {
+     id: 'customer_contact_services',
+     name: 'Customer Contact Services',
+     website: 'https://yourccsteam.com/',
+     priority: 2,
+     tags: ['client', 'customer_contact_services']
+   },
+   {
+     id: 'sturdy',
+     name: 'Sturdy',
+     website: 'https://www.sturdy.ai/',
+     priority: 3,
+     tags: ['client', 'sturdy']
+   },
+   {
+     id: 'seneca_global',
+     name: 'SenecaGlobal',
+     website: 'https://www.senecaglobal.com/',
+     priority: 4,
+     tags: ['client', 'seneca_global']
+   },
+   {
+     id: 'pecan',
+     name: 'Pecan',
+     website: 'https://www.pecan.ai/',
+     priority: 5,
+     tags: ['client', 'pecan']
+   }
  ]
 };
