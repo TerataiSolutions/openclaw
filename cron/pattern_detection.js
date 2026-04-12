@@ -79,6 +79,27 @@ function cosineSimilarity(vecA, vecB) {
     return dot;
 }
 
+async function generateEmbedding(text) {
+    const response = await fetch(COHERE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${COHERE_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            texts: [text],
+            model: 'embed-english-v3.0',
+            input_type: 'search_document',
+        }),
+    });
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Cohere API error: ${err}`);
+    }
+    const data = await response.json();
+    return data.embeddings[0];
+}
+
 async function clientSideSemanticSearch(queryEmbedding, memories, threshold = 0.5, limit = 20) {
     const results = memories.map(mem => ({
         id: mem.id,
@@ -111,7 +132,6 @@ async function savePatternMemory(topic, count, memoryIds) {
         content: `Pattern detected: ${topic} (appears across ${count} memories)`,
         importance: 7,
         tags: ['pattern_detected', `topic_${topic.substring(0, 20).replace(/\s+/g, '_')}`],
-        // Store referenced memory IDs as a JSON string in a field? Not in schema.
     };
     const url = `${SUPABASE_URL}/rest/v1/memories`;
     const response = await fetch(url, {
@@ -120,7 +140,7 @@ async function savePatternMemory(topic, count, memoryIds) {
             'apikey': SUPABASE_ANON_KEY,
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
+            'Prefer': 'return=representation'
         },
         body: JSON.stringify(memory),
     });
@@ -128,8 +148,33 @@ async function savePatternMemory(topic, count, memoryIds) {
         console.error('Failed to save pattern memory:', response.statusText);
         return null;
     }
-    console.log('Pattern memory saved:', memory.content);
-    return memory;
+    const saved = await response.json();
+    const memoryId = saved[0].id;
+    console.log('Pattern memory saved:', memory.content, 'id:', memoryId);
+    
+    // Generate embedding
+    try {
+        const embedding = await generateEmbedding(memory.content);
+        const updateUrl = `${SUPABASE_URL}/rest/v1/memories?id=eq.${memoryId}`;
+        const updateResponse = await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ embedding }),
+        });
+        if (!updateResponse.ok) {
+            console.error('Failed to update pattern memory with embedding:', updateResponse.statusText);
+        } else {
+            console.log('Pattern memory embedding added.');
+        }
+    } catch (err) {
+        console.error('Failed to generate embedding for pattern memory:', err.message);
+    }
+    return saved[0];
 }
 
 async function main() {
