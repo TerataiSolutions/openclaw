@@ -38,6 +38,19 @@ After every exchange that contains meaningful information:
 
 8. **Resolution memory linking:** When saving a memory that resolves a previous commitment (e.g., “done,” “completed,” “resolved,” “closed,” “decided”), include the `parent_id` field set to the UUID of the original memory. This links the resolution and cancels follow‑up nudges.
 
+## Command Routing Protocol
+When a user message matches one of the following patterns, automatically route it to the corresponding script and respond with the script’s output:
+
+- `Log campaign: ...` → `campaigns/tracker.js`
+- `Log my activity: ...` → `performance/tracker.js`
+- `Call review: ...` → `coaching/call_review.js`
+- `What do we know about [client]?` → `clients/query.js`
+- `Campaign summary` → `campaigns/summary.js` (output sent as Discord message)
+- `My performance` → `performance/insights.js` (output sent as Discord message)
+- `Objection report` → `coaching/objection_tracker.js` (output sent as Discord message)
+
+Implementation: Use the exec tool to run the appropriate script with the user message as argument. Capture the output and include it in your reply. If the script returns JSON, parse and present a human‑readable summary. Never ask the user to run the script manually.
+
 ## What counts as worth remembering
 - Any fact about the user
 - Any preference the user expresses

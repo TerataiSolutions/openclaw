@@ -53,24 +53,80 @@ async function logLateSession(userMessage) {
     };
     
     try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/memories`, {
-            method: 'POST',
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal'
-            },
-            body: JSON.stringify(memory)
-        });
-        if (!response.ok) {
-            console.error('Failed to log late session:', response.statusText);
-        } else {
-            console.log('Late session logged.');
-        }
+        await saveMemoryWithEmbedding(memory);
+        console.log('Late session logged.');
     } catch (err) {
         console.error('Error logging late session:', err.message);
     }
 }
 
-module.exports = { getEasternHour, isActiveHours, isQuietHours, logLateSession };
+/**
+ * Generate a Cohere embedding for text.
+ */
+async function generateEmbedding(text) {
+    const COHERE_ENDPOINT = process.env.COHERE_ENDPOINT || 'https://api.cohere.ai/v1/embed';
+    const COHERE_API_KEY = process.env.COHERE_API_KEY;
+    if (!COHERE_API_KEY) {
+        throw new Error('COHERE_API_KEY environment variable is not set');
+    }
+    const response = await fetch(COHERE_ENDPOINT, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${COHERE_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            texts: [text],
+            model: 'embed-english-v3.0',
+            input_type: 'search_document',
+        }),
+    });
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Cohere API error: ${err}`);
+    }
+    const data = await response.json();
+    return data.embeddings[0];
+}
+
+/**
+ * Save a memory to Supabase with an automatically generated embedding.
+ * @param {object} memory - Memory object (must contain type, content, importance, tags etc.)
+ * @returns {Promise<object>} The saved memory (including id, created_at)
+ */
+async function saveMemoryWithEmbedding(memory) {
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        throw new Error('SUPABASE_URL or SUPABASE_ANON_KEY environment variable is not set');
+    }
+    // Ensure required fields
+    if (!memory.type || !memory.content) {
+        throw new Error('Memory must have type and content');
+    }
+    // Generate embedding
+    const embedding = await generateEmbedding(memory.content);
+    const memoryWithEmbedding = {
+        ...memory,
+        embedding,
+    };
+    const url = `${SUPABASE_URL}/rest/v1/memories`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(memoryWithEmbedding),
+    });
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Supabase insert error: ${err}`);
+    }
+    const saved = await response.json();
+    return saved[0];
+}
+
+module.exports = { getEasternHour, isActiveHours, isQuietHours, logLateSession, generateEmbedding, saveMemoryWithEmbedding };

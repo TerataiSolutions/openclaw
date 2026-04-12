@@ -56,4 +56,13 @@ cron.schedule('0 18 * * 0', () => runScript('weekly_memory_report.js'), options)
 // Pattern Detection — Sunday 6 PM Eastern
 cron.schedule('0 18 * * 0', () => runScript('pattern_detection.js'), options);
 
+// Weekly PDF report — Friday 5 PM Eastern
+cron.schedule('0 17 * * 5', () => runScript('../reports/weekly_report.js'), options);
+
+// Weekly performance goal reminder — Monday 8 AM Eastern
+cron.schedule('0 8 * * 1', () => runScript('goal_reminder.js'), options);
+
+// Daily activity prompt — 3 PM Eastern
+cron.schedule('0 15 * * *', () => runScript('daily_activity_prompt.js'), options);
+
 console.log('Cron manager started (America/New_York timezone). Schedules active.');

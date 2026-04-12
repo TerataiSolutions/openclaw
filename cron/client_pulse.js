@@ -4,7 +4,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const { clients } = require('../clients/registry.js');
 const sortedClients = clients.sort((a, b) => a.priority - b.priority);
-const { isActiveHours } = require('../utils.js');
+const { isActiveHours, saveMemoryWithEmbedding } = require('../utils.js');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
@@ -56,21 +56,8 @@ async function saveRotationState(index, date) {
         importance: 1,
         tags: ['client_pulse_state'],
     };
-    const url = `${SUPABASE_URL}/rest/v1/memories`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(memory),
-    });
-    if (!response.ok) {
-        throw new Error(`Failed to save rotation state: ${response.statusText}`);
-    }
-    console.log('Rotation state saved:', state);
+    const saved = await saveMemoryWithEmbedding(memory);
+    console.log('Rotation state saved:', state, '(id: ' + saved.id + ')');
 }
 
 async function main() {
