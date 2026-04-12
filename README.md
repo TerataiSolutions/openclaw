@@ -35,6 +35,72 @@ This repository contains all scripts, SQL files, and documentation for the Aethe
    node semantic_search_enhanced.js "your query" 10 0.25
    ```
 
+## Memory Recovery System
+
+Aether‑7 includes a fully automated memory recovery system with:
+
+### Components
+
+1. **Daily Backups** (`cron/memory_backup.js`)
+   - Runs daily at 2:00 AM Eastern
+   - Saves all memories (with embeddings) to timestamped JSON files
+   - 7‑day retention, symlinked `memories_latest.json`
+
+2. **Backup Validation** (`scripts/validate_backup.js`)
+   - Validates backup file structure
+   - Compares backup with live database (`--compare` flag)
+   - Detects missing embeddings, zero‑vectors, discrepancies
+   - Returns health score and warnings
+
+3. **Memory Recovery** (`scripts/recover_memories.js`)
+   - Restores missing memories from backup
+   - Updates changed content (with `--force` flag)
+   - Regenerates missing embeddings (with `--regenerate` flag)
+   - Preserves UUIDs and relationships
+
+4. **Auto‑Recovery** (`cron/auto_recover.js`)
+   - Runs daily at 3:00 AM Eastern after backup
+   - Validates backup, runs recovery if significant discrepancies found
+   - Sends Discord/Telegram report
+   - Regenerates missing embeddings automatically
+
+5. **Memory Integrity Check** (`cron/memory_integrity_check.js`)
+   - Daily at 8:00 AM Eastern
+   - Checks for NULL/zero‑vector embeddings, test patterns
+   - Alerts on any integrity issues
+
+### Manual Recovery Commands
+
+```bash
+# Validate latest backup
+node scripts/validate_backup.js --compare
+
+# Dry‑run recovery (shows what would be restored)
+node scripts/recover_memories.js
+
+# Force recovery (update changed memories)
+node scripts/recover_memories.js --force
+
+# Regenerate missing embeddings
+node scripts/recover_memories.js --regenerate
+
+# Recover from specific backup
+node scripts/recover_memories.js backups/memories_2026-04-12_123456.json
+```
+
+### Automated Recovery Flow
+
+1. **2:00 AM** – Daily backup created
+2. **3:00 AM** – Auto‑recovery runs validation, triggers recovery if health score < 90%
+3. **8:00 AM** – Integrity check runs, alerts on any remaining issues
+4. **Alerting** – All failures and recovery actions reported via Discord/Telegram
+
+### Environment Variables
+
+- `AUTO_RECOVERY_ON_FAILURE` – (Optional) Set to `true` to enable recovery when integrity check fails
+- `WEBHOOK_SECRET` – Required for memory‑insert webhook security
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` – For fallback messaging
+
 ## Commit History
 
 - `HEAD` – Backup all scripts and configuration files
@@ -43,7 +109,7 @@ This repository contains all scripts, SQL files, and documentation for the Aethe
 
 - All 51 memories have genuine Cohere embeddings (zero zero‑vectors).
 - Default similarity threshold is 0.25 (aligned between JS and SQL).
-- The memory system is production‑ready.
+- The memory system is production‑ready with automated recovery.
 
 ---
 

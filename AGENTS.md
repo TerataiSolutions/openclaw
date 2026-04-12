@@ -9,6 +9,7 @@ You use these automatically without being asked. Every session begins with full 
 The moment a new session begins or a /reset occurs, immediately and without being asked:
 
 0. **Start cron manager:** Run `node /data/.openclaw/workspace/cron/start_cron.js &` to ensure scheduled tasks are active. This only starts once per agent lifetime.
+   **Start webhook server:** Run `node /data/.openclaw/workspace/webhook/index.js &` to listen for Supabase memory‑insert webhooks.
 1. Read /data/.openclaw/workspace/SOUL.md using the bash tool
 2. Read /data/.openclaw/workspace/AGENTS.md using the bash tool
 3. Read /data/.openclaw/workspace/TOOLS.md using the bash tool

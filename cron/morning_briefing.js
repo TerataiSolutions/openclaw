@@ -13,7 +13,7 @@ async function sendDM(message) {
     const execPromise = util.promisify(exec);
     try {
         const { stdout, stderr } = await execPromise(
-            `node /data/.openclaw/workspace/cron/discord_bridge.js "${message.replace(/"/g, '\\"')}"`
+            `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
         );
         if (stderr) console.error('Bridge stderr:', stderr);
         return true;

@@ -3,7 +3,18 @@
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
-const { sendMessage } = require('../discord.js');
+async function sendDM(message) {
+    try {
+        const { stdout, stderr } = await execPromise(
+            `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
+        );
+        if (stderr) console.error('Bridge stderr:', stderr);
+        return true;
+    } catch (err) {
+        console.error('Failed to send via bridge:', err.message);
+        return false;
+    }
+}
 
 async function runSelfTest() {
     try {
@@ -47,7 +58,7 @@ async function main() {
     if (!testResult.success) {
         const alertText = `Search self-test failed. ${testResult.message}\nLast successful test: ${new Date().toISOString()}\nRecommend: Manual RPC verification in Supabase.`;
         console.error(alertText);
-        const sent = await sendMessage(alertText);
+        const sent = await sendDM(alertText);
         if (!sent) console.error('Failed to send Discord alert');
         process.exit(1);
     } else {

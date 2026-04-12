@@ -2,7 +2,22 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const { sendMessage } = require('../discord.js');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
+
+async function sendDM(message) {
+    try {
+        const { stdout, stderr } = await execPromise(
+            `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
+        );
+        if (stderr) console.error('Bridge stderr:', stderr);
+        return true;
+    } catch (err) {
+        console.error('Failed to send via bridge:', err.message);
+        return false;
+    }
+}
 
 async function fetchAllMemories() {
     const url = `${SUPABASE_URL}/rest/v1/memories?select=id,content,embedding,importance`;
@@ -57,7 +72,7 @@ async function main() {
     if (issues.length > 0) {
         const alertText = `System alert: ${issues.length} memory integrity issue(s) found.\n${issues.slice(0, 5).join('\n')}`;
         console.error(alertText);
-        const sent = await sendMessage(alertText);
+        const sent = await sendDM(alertText);
         if (!sent) console.error('Failed to send Discord alert');
         process.exit(1);
     } else {

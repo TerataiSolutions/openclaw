@@ -2,7 +2,22 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const { sendMessage } = require('../discord.js');
+const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
+
+async function sendDM(message) {
+    try {
+        const { stdout, stderr } = await execPromise(
+            `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
+        );
+        if (stderr) console.error('Bridge stderr:', stderr);
+        return true;
+    } catch (err) {
+        console.error('Failed to send via bridge:', err.message);
+        return false;
+    }
+}
 
 async function fetchMemories() {
     const url = `${SUPABASE_URL}/rest/v1/memories?select=id,type,content,embedding,created_at`;
@@ -71,7 +86,7 @@ Integrity: ${integrity}
 ${oldestTask ? `Oldest open task: "${oldestTask.content.substring(0, 120)}" — ${Math.floor((now - new Date(oldestTask.created_at)) / (1000 * 60 * 60 * 24))} days old` : 'No task memories.'}`;
     
     console.log(report);
-    const sent = await sendMessage(report);
+    const sent = await sendDM(report);
     if (!sent) console.error('Failed to send Discord message');
     process.exit(0);
 }
