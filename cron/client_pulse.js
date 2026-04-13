@@ -4,7 +4,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const { clients } = require('../clients/registry.js');
 const sortedClients = clients.sort((a, b) => a.priority - b.priority);
-const { isActiveHours, saveMemoryWithEmbedding } = require('../utils.js');
+const { isActiveHours, saveMemoryWithEmbedding, retrySupabaseCall } = require('../utils.js');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
@@ -25,17 +25,23 @@ async function sendDM(message) {
 async function fetchRotationState() {
     // Look for a memory tagged 'client_pulse_state'
     const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{client_pulse_state}&select=id,content&order=created_at.desc&limit=1`;
-    const response = await fetch(url, {
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-        },
+    const states = await retrySupabaseCall(async () => {
+        const response = await fetch(url, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch rotation state: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
     });
-    if (!response.ok) {
-        throw new Error(`Failed to fetch rotation state: ${response.status} ${response.statusText}`);
+    if (!states) {
+        console.error('Failed to fetch rotation state after retry');
+        return null;
     }
-    const states = await response.json();
     if (states.length === 0) {
         return null;
     }

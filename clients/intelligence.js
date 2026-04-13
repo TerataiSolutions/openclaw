@@ -3,7 +3,7 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const { clients } = require('./registry.js');
-const { saveMemoryWithEmbedding } = require('../utils.js');
+const { saveMemoryWithEmbedding, retrySupabaseCall } = require('../utils.js');
 
 /**
  * Fetch HTML from a URL and return as text.
@@ -31,18 +31,23 @@ async function fetchHTML(url) {
  */
 async function deleteExistingClientIntel(client) {
     const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{${client.id}}&type=eq.client_intel&select=id`;
-    const response = await fetch(url, {
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-        },
+    const existing = await retrySupabaseCall(async () => {
+        const response = await fetch(url, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch existing intel for ${client.name}: ${response.statusText}`);
+        }
+        return await response.json();
     });
-    if (!response.ok) {
-        console.error(`Failed to fetch existing intel for ${client.name}: ${response.statusText}`);
+    if (!existing) {
+        console.error('Failed to fetch existing intel after retry');
         return;
     }
-    const existing = await response.json();
     if (existing.length === 0) {
         console.log(`No existing client_intel memories for ${client.name}`);
         return;
@@ -51,17 +56,23 @@ async function deleteExistingClientIntel(client) {
     // Delete each memory (could batch, but simplicity)
     for (const mem of existing) {
         const deleteUrl = `${SUPABASE_URL}/rest/v1/memories?id=eq.${mem.id}`;
-        const deleteRes = await fetch(deleteUrl, {
-            method: 'DELETE',
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=representation',
-            },
+        const deleteRes = await retrySupabaseCall(async () => {
+            const response = await fetch(deleteUrl, {
+                method: 'DELETE',
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation',
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to delete memory ${mem.id}: ${response.statusText}`);
+            }
+            return response;
         });
-        if (!deleteRes.ok) {
-            console.error(`Failed to delete memory ${mem.id}: ${deleteRes.statusText}`);
+        if (!deleteRes) {
+            console.error(`Failed to delete memory ${mem.id} after retry`);
         }
     }
     console.log(`Deleted ${existing.length} old memories for ${client.name}`);

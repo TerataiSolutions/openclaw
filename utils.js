@@ -1,5 +1,30 @@
 // Shared utilities for HEARTBEAT system
 const TIMEZONE = 'America/New_York';
+const fs = require('fs');
+const path = require('path');
+
+/**
+ * Retry a Supabase REST call with one retry after delay.
+ * On second failure, log error to logs/errors.log and return null.
+ */
+async function retrySupabaseCall(fn, attempts = 2, delay = 2000) {
+    for (let i = 0; i < attempts; i++) {
+        try {
+            return await fn();
+        } catch (err) {
+            if (i === attempts - 1) {
+                // Last attempt failed
+                const logEntry = `${new Date().toISOString()} - Supabase call failed: ${err.message}\n`;
+                const logPath = path.join(__dirname, 'logs', 'errors.log');
+                fs.appendFileSync(logPath, logEntry, { encoding: 'utf8' });
+                console.error('Supabase call failed after retries, logged to', logPath);
+                return null;
+            }
+            console.warn(`Supabase call failed (attempt ${i + 1}), retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+}
 
 /**
  * Returns the hour (0‑23) in Eastern time for a given Date.
@@ -92,7 +117,7 @@ async function generateEmbedding(text) {
 /**
  * Save a memory to Supabase with an automatically generated embedding.
  * @param {object} memory - Memory object (must contain type, content, importance, tags etc.)
- * @returns {Promise<object>} The saved memory (including id, created_at)
+ * @returns {Promise<object>} The saved memory (including id, created_at) or null on failure.
  */
 async function saveMemoryWithEmbedding(memory) {
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -104,29 +129,31 @@ async function saveMemoryWithEmbedding(memory) {
     if (!memory.type || !memory.content) {
         throw new Error('Memory must have type and content');
     }
-    // Generate embedding
+    // Generate embedding (no retry for Cohere)
     const embedding = await generateEmbedding(memory.content);
     const memoryWithEmbedding = {
         ...memory,
         embedding,
     };
     const url = `${SUPABASE_URL}/rest/v1/memories`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation',
-        },
-        body: JSON.stringify(memoryWithEmbedding),
+    const saved = await retrySupabaseCall(async () => {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation',
+            },
+            body: JSON.stringify(memoryWithEmbedding),
+        });
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`Supabase insert error: ${err}`);
+        }
+        return await response.json();
     });
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Supabase insert error: ${err}`);
-    }
-    const saved = await response.json();
-    return saved[0];
+    return saved ? saved[0] : null;
 }
 
-module.exports = { getEasternHour, isActiveHours, isQuietHours, logLateSession, generateEmbedding, saveMemoryWithEmbedding };
+module.exports = { getEasternHour, isActiveHours, isQuietHours, logLateSession, generateEmbedding, saveMemoryWithEmbedding, retrySupabaseCall };

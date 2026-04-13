@@ -4,7 +4,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const COHERE_API_KEY = process.env.COHERE_API_KEY;
 const COHERE_ENDPOINT = 'https://api.cohere.ai/v1/embed';
-const { saveMemoryWithEmbedding, generateEmbedding } = require('../utils.js');
+const { saveMemoryWithEmbedding, generateEmbedding, retrySupabaseCall } = require('../utils.js');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
@@ -24,17 +24,23 @@ async function sendDM(message) {
 
 async function fetchAllMemories() {
     const url = `${SUPABASE_URL}/rest/v1/memories?select=id,content,embedding,type,importance`;
-    const response = await fetch(url, {
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-        },
+    const memories = await retrySupabaseCall(async () => {
+        const response = await fetch(url, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch memories: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
     });
-    if (!response.ok) {
-        throw new Error(`Failed to fetch memories: ${response.status} ${response.statusText}`);
+    if (!memories) {
+        console.error('Failed to fetch memories after retry');
+        return [];
     }
-    const memories = await response.json();
     // parse embedding strings into arrays, filter out nulls
     return memories
         .filter(mem => mem.embedding != null)
@@ -96,16 +102,19 @@ async function clientSideSemanticSearch(queryEmbedding, memories, threshold = 0.
 
 async function fetchPatternDetectedMemories() {
     const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{pattern_detected}&select=id,content,tags`;
-    const response = await fetch(url, {
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
+    const memories = await retrySupabaseCall(async () => {
+        const response = await fetch(url, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch pattern memories: ${response.statusText}`);
+        }
+        return await response.json();
     });
-    if (!response.ok) {
-        return [];
-    }
-    return await response.json();
+    return memories || [];
 }
 
 async function savePatternMemory(topic, count, memoryIds) {

@@ -5,7 +5,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
-const { saveMemoryWithEmbedding } = require('../utils.js');
+const { saveMemoryWithEmbedding, retrySupabaseCall } = require('../utils.js');
 
 /**
  * Send message via bridge.
@@ -86,18 +86,23 @@ async function savePersonalPerformance(metrics, week) {
 async function getStreak() {
     // Fetch all personal_performance memories ordered by week
     const url = `${SUPABASE_URL}/rest/v1/memories?type=eq.personal_performance&select=content,tags&order=created_at.desc`;
-    const response = await fetch(url, {
-        headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-        },
+    const memories = await retrySupabaseCall(async () => {
+        const response = await fetch(url, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
+        }
+        return await response.json();
     });
-    if (!response.ok) {
-        console.error('Failed to fetch performance memories for streak:', response.statusText);
+    if (!memories) {
+        console.error('Failed to fetch performance memories for streak after retry');
         return 0;
     }
-    const memories = await response.json();
     let streak = 0;
     for (const mem of memories) {
         const parsed = parsePersonalLog(mem.content);
