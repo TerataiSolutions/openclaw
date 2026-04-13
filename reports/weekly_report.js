@@ -63,26 +63,63 @@ async function sendPDF(buffer, filename) {
     if (!channelId) {
         throw new Error('Could not obtain Discord DM channel');
     }
+
+    // Compute week number (week of year)
+    const now = new Date();
+    const weekNumber = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
+    const date = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    const content = `Weekly Performance Report — Week ${weekNumber} (${date})`;
+    console.log(`Sending PDF to Discord channel ${channelId}, content: "${content}"`);
+    console.log(`Buffer length: ${buffer.length}`);
+
     const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
-    
-    const form = new FormData();
-    form.append('file', buffer, filename);
-    form.append('content', 'Weekly Performance Report');
-    
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
-            ...form.getHeaders(),
-        },
-        body: form,
-    });
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Discord file upload failed: ${response.status} ${errText}`);
+
+    // Use curl for reliable file upload (since curl works, Node's FormData fails)
+    const fs = require('fs');
+    const { exec } = require('child_process');
+    const util = require('util');
+    const execPromise = util.promisify(exec);
+
+    const tmpPath = `/tmp/${filename}`;
+    fs.writeFileSync(tmpPath, buffer);
+    console.log(`Written PDF to ${tmpPath}`);
+
+    const cmd = `curl -s -H "Authorization: Bot ${DISCORD_BOT_TOKEN}" -F "content=${content}" -F "file=@${tmpPath}" "${url}"`;
+    console.log(`Running curl command...`);
+    try {
+        const { stdout, stderr } = await execPromise(cmd);
+        if (stderr && stderr.trim() && !stderr.includes('Warning')) {
+            console.error(`Curl stderr: ${stderr}`);
+        }
+        // Parse response to confirm success
+        let response;
+        try {
+            response = JSON.parse(stdout);
+        } catch (e) {
+            // If stdout is empty, maybe success?
+            if (stdout.trim() === '') {
+                console.log('Curl succeeded (empty response)');
+                fs.unlinkSync(tmpPath);
+                return true;
+            }
+            throw new Error(`Invalid JSON response: ${stdout}`);
+        }
+        if (response.id) {
+            console.log(`PDF sent to Discord via curl (message ID ${response.id})`);
+            fs.unlinkSync(tmpPath);
+            return true;
+        }
+        // If response contains error
+        throw new Error(`Discord API error: ${JSON.stringify(response)}`);
+    } catch (err) {
+        console.error(`Curl upload failed: ${err.message}`);
+        throw new Error(`Discord file upload failed: ${err.message}`);
+    } finally {
+        // Clean up temp file if still exists
+        if (fs.existsSync(tmpPath)) {
+            fs.unlinkSync(tmpPath);
+        }
     }
-    console.log('PDF sent to Discord');
-    return true;
 }
 
 // Helper: fetch weekly win capture memory
