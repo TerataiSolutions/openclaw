@@ -2,65 +2,43 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
+const { execSync, spawn } = require('child_process');
 
-const lockFile = path.join(__dirname, '.cron.lock');
-const pid = process.pid;
+const LOCK_FILE = path.join(__dirname, '.cron.lock');
 
-// Validate PID – should not be container init (PID 1) or extremely low
-if (pid === 1) {
-    console.error('ERROR: process.pid is 1 (container init). Something is wrong with the process environment.');
-    process.exit(1);
+function isRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
-// Check if lock file exists and if the process is still alive; delete stale lock
-function isCronRunning() {
-    if (!fs.existsSync(lockFile)) return false;
-    const content = fs.readFileSync(lockFile, 'utf8').trim();
-    const oldPid = parseInt(content, 10);
-    if (isNaN(oldPid)) {
-        fs.unlinkSync(lockFile);
-        return false;
-    }
-    try {
-        process.kill(oldPid, 0); // signal 0 to check existence
-        return true;
-    } catch (err) {
-        // Process does not exist – stale lock
-        fs.unlinkSync(lockFile);
-        return false;
-    }
-}
-
-let shouldRestart = true;
-
-if (isCronRunning()) {
-    console.log('Cron manager already running. Exiting.');
-    shouldRestart = false;
+// Check if already running
+if (fs.existsSync(LOCK_FILE)) {
+  const existingPid = parseInt(fs.readFileSync(LOCK_FILE, 'utf8').trim());
+  if (existingPid && isRunning(existingPid)) {
+    console.log(`Cron manager already running (PID ${existingPid}). Exiting.`);
     process.exit(0);
+  } else {
+    console.log(`Stale lock file found (PID ${existingPid}). Removing.`);
+    fs.unlinkSync(LOCK_FILE);
+  }
 }
 
-// Write lock file
-fs.writeFileSync(lockFile, pid.toString());
-console.log(`Lock file written with PID ${pid}`);
-console.log('Starting cron manager...');
-
-// Clean up lock on exit and restart if needed
-process.on('exit', () => {
-    try { fs.unlinkSync(lockFile); } catch (e) {}
-    if (shouldRestart) {
-        // Spawn a detached child that will restart after a short delay
-        const child = spawn(process.argv[0], process.argv.slice(1), {
-            detached: true,
-            stdio: 'ignore',
-            env: process.env
-        });
-        child.unref();
-        console.log('Cron manager restart scheduled.');
-    }
-});
-process.on('SIGINT', () => process.exit());
-process.on('SIGTERM', () => process.exit());
+// Write our PID
+if (process.pid <= 2) {
+  console.error('Invalid PID detected. Exiting.');
+  process.exit(1);
+}
+fs.writeFileSync(LOCK_FILE, String(process.pid));
+console.log(`Lock file written with PID ${process.pid}`);
 
 // Start the cron manager
-require('./index.js').startCronManager();
+const { startCronManager } = require('./index.js');
+startCronManager();
+console.log('Cron manager started (America/New_York timezone). Schedules active.');
+
+// NO restart loop -- the Railway start command handles restarts on crash
+// A restart loop here causes duplicate processes
