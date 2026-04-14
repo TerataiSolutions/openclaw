@@ -9,6 +9,16 @@ const LOCK_FILE = path.join(__dirname, '.cron.lock');
 function isRunning(pid) {
   try {
     process.kill(pid, 0);
+    // Check if process is a zombie (state Z)
+    try {
+      const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
+      const state = stat.split(' ')[2]; // third field is process state
+      if (state === 'Z') {
+        return false; // zombie is not running
+      }
+    } catch (e) {
+      // /proc not available, fallback to signal check
+    }
     return true;
   } catch (e) {
     return false;
