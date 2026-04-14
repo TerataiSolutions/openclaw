@@ -3,16 +3,17 @@
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { logJson } = require('../utils');
 
 async function sendDM(message) {
     try {
         const { stdout, stderr } = await execPromise(
             `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
         );
-        if (stderr) console.error('Bridge stderr:', stderr);
+        if (stderr) logJson('error', { message: 'Bridge stderr', stderr });
         return true;
     } catch (err) {
-        console.error('Failed to send via bridge:', err.message);
+        logJson('error', { message: 'Failed to send via bridge', error: err.message });
         return false;
     }
 }
@@ -27,29 +28,29 @@ async function runCommand(cmd) {
 }
 
 async function main() {
-    console.log('Starting automated memory recovery...');
+    logJson('info', { message: 'Starting automated memory recovery' });
     
     // First, validate the latest backup
-    console.log('Validating latest backup...');
+    logJson('info', { message: 'Validating latest backup' });
     const validateResult = await runCommand('node /data/.openclaw/workspace/scripts/validate_backup.js --compare');
     
     if (!validateResult.success) {
         const msg = `Auto-recovery failed: Backup validation error - ${validateResult.error}`;
-        console.error(msg);
+        logJson('error', { message: msg });
         await sendDM(msg);
         process.exit(1);
     }
     
     // Check if validation exited with code 2 (significant discrepancy)
     if (validateResult.stdout && validateResult.stdout.includes('Significant discrepancy detected')) {
-        console.log('Significant discrepancy detected, attempting recovery...');
+        logJson('info', { message: 'Significant discrepancy detected, attempting recovery' });
         
         // Run recovery with --regenerate flag to fix missing embeddings
         const recoveryResult = await runCommand('node /data/.openclaw/workspace/scripts/recover_memories.js --regenerate');
         
         if (!recoveryResult.success) {
             const msg = `Auto-recovery failed during recovery: ${recoveryResult.error}`;
-            console.error(msg);
+            logJson('error', { message: msg });
             await sendDM(msg);
             process.exit(1);
         }
@@ -64,25 +65,25 @@ async function main() {
         const regenerated = regeneratedMatch ? parseInt(regeneratedMatch[1]) : 0;
         
         const summary = `Auto-recovery completed: ${restored} restored, ${updated} updated, ${regenerated} embeddings regenerated.`;
-        console.log(summary);
+        logJson('info', { message: summary });
         await sendDM(summary);
         
         // Run validation again to confirm fix
-        console.log('Validating after recovery...');
+        logJson('info', { message: 'Validating after recovery' });
         const postValidate = await runCommand('node /data/.openclaw/workspace/scripts/validate_backup.js --compare');
         if (!postValidate.success) {
-            console.warn('Post-recovery validation warning:', postValidate.error);
+            logJson('warn', { message: 'Post-recovery validation warning', error: postValidate.error });
         }
         
-        console.log('Auto-recovery complete.');
+        logJson('info', { message: 'Auto-recovery complete' });
         process.exit(0);
     } else {
-        console.log('No significant discrepancy found. No recovery needed.');
+        logJson('info', { message: 'No significant discrepancy found, no recovery needed' });
         process.exit(0);
     }
 }
 
 main().catch(err => {
-    console.error('Auto-recovery failed:', err);
+    logJson('error', { message: 'Auto-recovery failed', error: err.message });
     process.exit(1);
 });

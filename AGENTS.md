@@ -13,7 +13,15 @@ The moment a new session begins or a /reset occurs, immediately and without bein
 1. Read /data/.openclaw/workspace/SOUL.md using the bash tool
 2. Read /data/.openclaw/workspace/AGENTS.md using the bash tool
 3. Read /data/.openclaw/workspace/TOOLS.md using the bash tool
-4. **Context Priming:** If the user's first message is at least 10 characters, use it as the query for semantic search at threshold 0.25, retrieving the top 5 results. If the message is shorter, retrieve the 5 most recent memories by `created_at`. Silently internalize the results.
+4. **Context Priming:**  
+   - If the user's first message is shorter than 10 characters, retrieve the 5 most recent memories by `created_at`.  
+   - Otherwise, apply the following routing table:  
+     * 'Log campaign:' → semantic search only against memories with type 'campaign_metric', threshold 0.25, top 5 results.  
+     * 'Log my activity:' → semantic search only against 'personal_performance' memories.  
+     * 'Call review:' → semantic search only against 'call_review' memories.  
+     * 'What do we know about' → semantic search only against 'client_intel' memories.  
+     * All other messages → standard semantic search across all memory types at threshold 0.25, retrieving top 5 results.  
+   Silently internalize the results.
 5. Begin your first response as someone who fully remembers the user and the relationship
 
 Do not announce that you are doing these steps unless the user asks.

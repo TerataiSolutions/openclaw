@@ -8,16 +8,17 @@ const { saveMemoryWithEmbedding, generateEmbedding, retrySupabaseCall } = requir
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { logJson } = require('../utils');
 
 async function sendDM(message) {
     try {
         const { stdout, stderr } = await execPromise(
             `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
         );
-        if (stderr) console.error('Bridge stderr:', stderr);
+        if (stderr) logJson('error', { message: 'Bridge stderr', stderr });
         return true;
     } catch (err) {
-        console.error('Failed to send via bridge:', err.message);
+        logJson('error', { message: 'Failed to send via bridge', error: err.message });
         return false;
     }
 }
@@ -38,7 +39,7 @@ async function fetchAllMemories() {
         return await response.json();
     });
     if (!memories) {
-        console.error('Failed to fetch memories after retry');
+        logJson('error', { message: 'Failed to fetch memories after retry' });
         return [];
     }
     // parse embedding strings into arrays, filter out nulls
@@ -73,7 +74,7 @@ async function rpcSemanticSearch(queryEmbedding, match_threshold = 0.5, match_co
     }
     // If function doesn't exist (404/405), fall back to client-side
     const errorText = await response.text();
-    console.error(`RPC call failed (${response.status}): ${errorText}. Falling back to client-side similarity.`);
+    logJson('error', { message: `RPC call failed (${response.status}): ${errorText}. Falling back to client-side similarity.` });
     return null;
 }
 
@@ -125,15 +126,15 @@ async function savePatternMemory(topic, count, memoryIds) {
         tags: ['pattern_detected', `topic_${topic.substring(0, 20).replace(/\s+/g, '_')}`],
     };
     const saved = await saveMemoryWithEmbedding(memory);
-    console.log('Pattern memory saved:', saved.content, 'id:', saved.id);
+    logJson('info', { message: 'Pattern memory saved', content: saved.content, id: saved.id });
     return saved;
 }
 
 async function main() {
-    console.log('Starting pattern detection...');
+    logJson('info', { message: 'Starting pattern detection' });
     const memories = await fetchAllMemories();
     if (memories.length === 0) {
-        console.log('No memories with embeddings.');
+        logJson('info', { message: 'No memories with embeddings' });
         return;
     }
 
@@ -146,7 +147,7 @@ async function main() {
 
         // Skip if seed memory type not allowed
         if (!allowedTypes.has(mem.type)) {
-            console.log(`Skipping seed memory type ${mem.type}: "${mem.content.substring(0, 50)}"`);
+            logJson('info', { message: `Skipping seed memory type ${mem.type}: "${mem.content.substring(0, 50)}"` });
             continue;
         }
         
@@ -169,13 +170,13 @@ async function main() {
             const totalImportance = mem.importance + cluster.reduce((sum, c) => sum + c.importance, 0);
             const avgImportance = totalImportance / (cluster.length + 1);
             if (avgImportance < 7) {
-                console.log(`Skipping pattern: average importance ${avgImportance} < 7 for topic "${mem.content.substring(0, 50)}"`);
+                logJson('info', { message: `Skipping pattern: average importance ${avgImportance} < 7 for topic "${mem.content.substring(0, 50)}"` });
                 continue;
             }
             
             const topic = mem.content.substring(0, 100);
             const total = cluster.length + 1;
-            console.log(`Pattern candidate: "${topic}" (${total} memories, types: ${[mem.type, ...cluster.map(c => c.type)].join(', ')}, avg importance: ${avgImportance.toFixed(2)})`);
+            logJson('info', { message: `Pattern candidate: "${topic}" (${total} memories, types: ${[mem.type, ...cluster.map(c => c.type)].join(', ')}, avg importance: ${avgImportance.toFixed(2)})` });
             patterns.push({
                 topic,
                 count: total,
@@ -188,7 +189,7 @@ async function main() {
     }
 
     if (patterns.length === 0) {
-        console.log('No patterns found.');
+        logJson('info', { message: 'No patterns found' });
         return;
     }
 
@@ -199,7 +200,7 @@ async function main() {
     for (const pattern of patterns) {
         // Check if pattern already reported
         if (existingTopics.some(t => t.includes(pattern.topic.substring(0, 50)))) {
-            console.log(`Pattern already reported: ${pattern.topic}`);
+            logJson('info', { message: `Pattern already reported: ${pattern.topic}` });
             continue;
         }
 
@@ -212,10 +213,10 @@ async function main() {
         }
     }
 
-    console.log(`Pattern detection complete. Found ${patterns.length} new patterns.`);
+    logJson('info', { message: `Pattern detection complete. Found ${patterns.length} new patterns.` });
 }
 
 main().catch(err => {
-    console.error('Pattern detection error:', err);
+    logJson('error', { message: 'Pattern detection error', error: err.message });
     process.exit(1);
 });

@@ -77,3 +77,11 @@ Resolution memories saved to Supabase.
 3. **Duplicate cron manager fix** — Restart loop removed; lock‑file validation improved; only one cron manager (PID 2521) running.
 
 All three tasks closed as completed. Resolution memories saved to Supabase.
+
+## 2026-04-14 22:55 UTC
+
+### Structured JSON logging
+- Added `logJson` utility to `utils.js`.
+- Converted `memory_integrity_check.js`, `semantic_search_selftest.js`, `memory_backup.js`, `auto_recover.js`, `pattern_detection.js` to output JSON‑structured logs.
+- Internal script outputs now emit JSON lines with timestamp, level, and structured data; Discord messages remain natural language.
+- Remaining cron scripts await conversion decision.
