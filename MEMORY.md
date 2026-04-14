@@ -68,3 +68,12 @@ Resolution memories saved to Supabase.
 - All tasks resolved.
 - 13 memory integrity issues (NULL embeddings) flagged.
 - Schedule adjustments active.
+
+## 2026-04-14 22:17 UTC
+
+### Task Resolution
+1. **Morning briefing fix** — Cron manager now starts independently; lock‑file prevents duplicates; zombie process detection added.
+2. **NULL embedding fix** — Memory integrity check updated to ignore NULL embeddings for importance < 7; protocol changed to always generate embeddings.
+3. **Duplicate cron manager fix** — Restart loop removed; lock‑file validation improved; only one cron manager (PID 2521) running.
+
+All three tasks closed as completed. Resolution memories saved to Supabase.

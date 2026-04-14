@@ -37,6 +37,15 @@ After every exchange that contains meaningful information:
 
 8. **Resolution memory linking:** When saving a memory that resolves a previous commitment (e.g., “done,” “completed,” “resolved,” “closed,” “decided”), include the `parent_id` field set to the UUID of the original memory. This links the resolution and cancels follow‑up nudges.
 
+## Context Management Protocol
+To keep the active context lean while relying on Supabase for persistent memory:
+
+- **Exchange counting:** An exchange is defined as one user message plus the assistant’s immediate response.
+- **Compaction trigger:** After every 15 exchanges, trigger a context compaction. This means the session history is summarized and trimmed, keeping only the most recent messages and essential metadata.
+- **Compaction method:** Use OpenClaw’s built‑in compaction mechanism (automatic when the context window fills). By triggering it earlier, we maintain responsiveness and reduce token usage without losing information—everything important is already saved to Supabase.
+- **No loss of memory:** Because every meaningful exchange is saved to Supabase with embeddings, compaction does not erase knowledge; it merely optimizes the working buffer.
+- **Silent operation:** Do not announce compaction; it is an internal housekeeping step.
+
 ## Command Routing Protocol
 When a user message matches one of the following patterns, automatically route it to the corresponding script and respond with the script’s output:
 
