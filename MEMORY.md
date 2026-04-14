@@ -85,3 +85,10 @@ All three tasks closed as completed. Resolution memories saved to Supabase.
 - Converted `memory_integrity_check.js`, `semantic_search_selftest.js`, `memory_backup.js`, `auto_recover.js`, `pattern_detection.js` to output JSON‑structured logs.
 - Internal script outputs now emit JSON lines with timestamp, level, and structured data; Discord messages remain natural language.
 - Remaining cron scripts await conversion decision.
+
+## 2026-04-14 23:20 UTC
+
+### Follow-up memories resolved
+1. **CPU temperature diagnosis** – resolved independently. Resolution memory `285ad704‑…` linked to original.
+2. **Voicemail scripts refinement** – resolved independently. Resolution memory `f3ed4a1f‑…` linked to original.
+- Zero open follow‑up items.
