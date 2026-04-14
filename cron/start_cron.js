@@ -7,17 +7,27 @@ const { spawn } = require('child_process');
 const lockFile = path.join(__dirname, '.cron.lock');
 const pid = process.pid;
 
-// Check if lock file exists and if the process is still alive
+// Validate PID – should not be container init (PID 1) or extremely low
+if (pid === 1) {
+    console.error('ERROR: process.pid is 1 (container init). Something is wrong with the process environment.');
+    process.exit(1);
+}
+
+// Check if lock file exists and if the process is still alive; delete stale lock
 function isCronRunning() {
     if (!fs.existsSync(lockFile)) return false;
     const content = fs.readFileSync(lockFile, 'utf8').trim();
     const oldPid = parseInt(content, 10);
-    if (isNaN(oldPid)) return false;
+    if (isNaN(oldPid)) {
+        fs.unlinkSync(lockFile);
+        return false;
+    }
     try {
         process.kill(oldPid, 0); // signal 0 to check existence
         return true;
     } catch (err) {
-        // Process does not exist
+        // Process does not exist – stale lock
+        fs.unlinkSync(lockFile);
         return false;
     }
 }
@@ -32,6 +42,7 @@ if (isCronRunning()) {
 
 // Write lock file
 fs.writeFileSync(lockFile, pid.toString());
+console.log(`Lock file written with PID ${pid}`);
 console.log('Starting cron manager...');
 
 // Clean up lock on exit and restart if needed
