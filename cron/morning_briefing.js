@@ -3,19 +3,14 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const { isActiveHours, retrySupabaseCall } = require('../utils.js');
+const { sendMessage } = require('./message_bridge.js');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
 async function sendDM(message) {
-    const { exec } = require('child_process');
-    const util = require('util');
-    const execPromise = util.promisify(exec);
     try {
-        const { stdout, stderr } = await execPromise(
-            `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
-        );
-        if (stderr) console.error('Bridge stderr:', stderr);
+        await sendMessage(message);
         return true;
     } catch (err) {
         console.error('Failed to send via bridge:', err.message);
@@ -154,6 +149,7 @@ async function main() {
     
     console.log('Fetching open tasks...');
     const openTasks = await fetchOpenTasks();
+    console.log('Open tasks count:', openTasks.length);
     
     if (openTasks.length === 0) {
         await sendDM('No open tasks. Clean slate.');

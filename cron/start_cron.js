@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 const lockFile = path.join(__dirname, '.cron.lock');
 const pid = process.pid;
@@ -21,8 +22,11 @@ function isCronRunning() {
     }
 }
 
+let shouldRestart = true;
+
 if (isCronRunning()) {
     console.log('Cron manager already running. Exiting.');
+    shouldRestart = false;
     process.exit(0);
 }
 
@@ -30,12 +34,22 @@ if (isCronRunning()) {
 fs.writeFileSync(lockFile, pid.toString());
 console.log('Starting cron manager...');
 
-// Clean up lock on exit
+// Clean up lock on exit and restart if needed
 process.on('exit', () => {
     try { fs.unlinkSync(lockFile); } catch (e) {}
+    if (shouldRestart) {
+        // Spawn a detached child that will restart after a short delay
+        const child = spawn(process.argv[0], process.argv.slice(1), {
+            detached: true,
+            stdio: 'ignore',
+            env: process.env
+        });
+        child.unref();
+        console.log('Cron manager restart scheduled.');
+    }
 });
 process.on('SIGINT', () => process.exit());
 process.on('SIGTERM', () => process.exit());
 
 // Start the cron manager
-require('./index.js');
+require('./index.js').startCronManager();

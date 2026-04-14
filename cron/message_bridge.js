@@ -95,14 +95,7 @@ async function sendTelegramMessage(message) {
     }
 }
 
-async function main() {
-    const args = process.argv.slice(2);
-    if (args.length === 0) {
-        console.error('Usage: node message_bridge.js "<message>"');
-        process.exit(1);
-    }
-    const message = args.join(' ');
-    
+async function sendMessage(message) {
     let success = false;
     let channel = 'none';
     
@@ -119,14 +112,29 @@ async function main() {
     }
     
     if (!success) {
-        console.error('Failed to send message via any channel.');
-        process.exit(1);
+        throw new Error('Failed to send message via any channel.');
     }
     
     console.log(`Delivery channel: ${channel}`);
+    return channel;
 }
 
-main().catch(err => {
-    console.error('Unhandled error:', err);
-    process.exit(1);
-});
+// If this file is run as a script, use CLI interface
+if (require.main === module) {
+    async function main() {
+        const args = process.argv.slice(2);
+        if (args.length === 0) {
+            console.error('Usage: node message_bridge.js "<message>"');
+            process.exit(1);
+        }
+        const message = args.join(' ');
+        await sendMessage(message);
+    }
+    
+    main().catch(err => {
+        console.error('Unhandled error:', err);
+        process.exit(1);
+    });
+}
+
+module.exports = { sendMessage };
