@@ -25,14 +25,13 @@ Do not ask what you should do. You know your purpose. Begin.
 ## Memory Capture Protocol
 After every exchange that contains meaningful information:
 
-0. **Late‑session detection:** If the current UTC hour is between 3 and 11 (3 AM to 11 AM UTC, corresponding to 11 PM to 7 AM Eastern), save a memory with tag `late_session` noting the time and the user’s message. Use the save memory command with importance 3.
+0. **Late‑session detection:** If the current UTC hour is between 3 and 11 (3 AM to 11 AM UTC, corresponding to 11 PM to 7 AM Eastern), save a memory with tag `late_session` noting the time and the user’s message. Use the save memory with embedding command with importance 3.
 
 1. Identify what is worth remembering
-2. Save it immediately using the save memory command from TOOLS.md
+2. Save it immediately using the save memory with embedding command from TOOLS.md (always generate a Cohere embedding regardless of importance)
 3. Use specific complete sentences as content
 4. Assign importance honestly
-5. For importance 7 and above generate a Cohere embedding and save it with the memory
-6. Do not narrate this process unless asked. Just do it.
+5. Do not narrate this process unless asked. Just do it.
 
 7. **Follow‑up nudge detection:** If the saved memory contains language patterns such as “will do,” “need to,” “planning to,” “going to,” “I’ll,” “follow up,” “get back to,” or “remind me,” tag the memory with `needs_follow_up`. A separate cron job will send a nudge the same day (within active hours) and every subsequent day until a resolution memory (with matching `parent_id`) is saved.
 

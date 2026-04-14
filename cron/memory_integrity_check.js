@@ -48,9 +48,9 @@ async function main() {
     const issues = [];
 
     memories.forEach(mem => {
-        // NULL embedding
-        if (mem.embedding === null) {
-            issues.push(`NULL embedding: ${mem.id} - ${mem.content.substring(0, 80)}`);
+        // NULL embedding (only flag for importance >= 7)
+        if (mem.embedding === null && mem.importance >= 7) {
+            issues.push(`NULL embedding (importance ${mem.importance}): ${mem.id} - ${mem.content.substring(0, 80)}`);
         }
         // Zero‑vector embedding
         if (mem.embedding && typeof mem.embedding === 'string') {

@@ -23,9 +23,8 @@ cron.schedule('15 8 * * *', () => {
     runScript('stale_task_alert.js');
 }, options);
 
-// Mood Check-In — 10 AM and 4 PM Eastern daily
-cron.schedule('0 10 * * *', () => runScript('mood_checkin.js'), options);
-cron.schedule('0 16 * * *', () => runScript('mood_checkin.js'), options);
+// Mood Check-In — 2 PM Eastern daily
+cron.schedule('0 14 * * *', () => runScript('mood_checkin.js'), options);
 
 // Follow‑Up Nudge — 12 PM Eastern daily
 cron.schedule('0 12 * * *', () => runScript('follow_up_nudge.js'), options);

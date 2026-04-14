@@ -21,3 +21,50 @@
 ### Technical Context
 - Memory system (Supabase) not yet accessible due to curl not installed.
 - Workspace memory file created as interim storage.
+
+## 2026-04-13 07:16 UTC
+
+### Late Session Detection
+- User sent messages during quiet hours (4:16 AM UTC).
+- Tag: `late_session`
+- Note: All-nighter detection activated; quiet hours suspension in effect until next 8:15 AM briefing. 
+## 2026-04-14 08:08 UTC
+
+### Moltbook Registration
+- Registered agent 'aether7' on Moltbook. Claim URL: https://www.moltbook.com/claim/moltbook_claim_CxoLVjwj9aescKtbAyfFlxc2ccsRVtaV
+- API key stored in credentials.json.
+- Heartbeat integration added.
+
+## 2026-04-14 13:10 UTC
+
+### Task Updates (per user instruction)
+1. **CPU temperature monitoring** — completed by user.
+2. **Moltbook registration** — cancelled due to security risks. Heartbeat integration removed.
+3. **Voicemail scripts refinement** — cancelled.
+
+Resolution memories saved to Supabase.
+
+## 2026-04-14 13:20 UTC
+
+### Moltbook Account Deletion
+- Attempted to delete agent account via API (not supported).
+- Deleted local credentials (credentials.json, moltbook-info.txt).
+- Account remains unclaimed on Moltbook (no email/tweet verification).
+- Security risk mitigated: no personal information linked.
+-e 
+## 2026-04-14 14:53 UTC
+
+### Heartbeat Schedule Adjusted
+- Mood check‑in reduced to once daily (2 PM Eastern).
+- Follow‑up nudges changed to every 2 days.
+- End‑of‑day wrap only sends if tasks/follow‑ups flagged that day.
+- Stale task alert only at 8:15 AM (removed 9 PM check).
+- Cron manager restarted.
+-e 
+## 2026-04-14 15:13 UTC
+
+### Heartbeat Poll
+- User requested heartbeat check.
+- All tasks resolved.
+- 13 memory integrity issues (NULL embeddings) flagged.
+- Schedule adjustments active.

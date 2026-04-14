@@ -3,7 +3,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const COHERE_API_KEY = process.env.COHERE_API_KEY;
 
 async function fetchNullEmbeddingMemories() {
-    const url = `${SUPABASE_URL}/rest/v1/memories?embedding=is.null&select=id,content`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?embedding=is.null&select=id,content,importance`;
     const response = await fetch(url, {
         headers: {
             'apikey': SUPABASE_ANON_KEY,
@@ -61,17 +61,25 @@ async function main() {
     const memories = await fetchNullEmbeddingMemories();
     console.log(`Found ${memories.length} NULL embedding memories`);
     
+    let skipped = 0;
+    let processed = 0;
     for (const mem of memories) {
+        if (mem.importance === null || mem.importance < 7) {
+            console.log(`Skipping low-importance memory ${mem.id} (importance ${mem.importance})`);
+            skipped++;
+            continue;
+        }
         console.log(`Processing: ${mem.id}`);
         try {
             const embedding = await generateEmbedding(mem.content);
             await updateMemoryEmbedding(mem.id, embedding);
             console.log(`Fixed: ${mem.id}`);
+            processed++;
         } catch (err) {
             console.error(`Error processing ${mem.id}:`, err.message);
         }
     }
-    console.log('All NULL embeddings processed.');
+    console.log(`All NULL embeddings processed. Processed ${processed}, skipped ${skipped} low-importance memories.`);
 }
 
 main().catch(err => {

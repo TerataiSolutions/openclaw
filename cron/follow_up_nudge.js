@@ -79,6 +79,9 @@ async function main() {
         const created = new Date(mem.created_at);
         const days = Math.floor((now - created) / (1000 * 60 * 60 * 24));
         
+        if (days === 0) continue; // same day already nudged
+        if (days % 2 === 1) continue; // skip odd days (every other day)
+        
         let message = `Still open: "${mem.content.substring(0, 200)}" — logged ${days} day(s) ago. Resolved?`;
         if (days >= 3) {
             message = `This has been open for ${days} days.\n` + message;

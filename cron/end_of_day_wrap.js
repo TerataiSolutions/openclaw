@@ -69,7 +69,7 @@ async function main() {
     const followUps = await fetchFollowUpsFlaggedToday();
     
     if (openTasks.length === 0 && followUps.length === 0) {
-        await sendDM('End of day. Nothing open to wrap.');
+        console.log('No tasks or follow-ups flagged today. Skipping end-of-day wrap.');
         return;
     }
     

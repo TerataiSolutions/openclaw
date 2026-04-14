@@ -52,6 +52,8 @@ Output: 1024-dimensional float array
 
 ### Save memory with embedding
 
+**Note:** All memories should include an embedding for semantic search; generate an embedding for every memory regardless of importance.
+
 ```bash
 EMBEDDING=$(curl -s -X POST "${COHERE_ENDPOINT}" \
   -H "Authorization: Bearer ${COHERE_API_KEY}" \

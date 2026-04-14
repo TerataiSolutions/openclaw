@@ -1,7 +1,7 @@
 # HEARTBEAT.md
 ## Aether-7 Proactive Behavior System
-**Version:** 1.0
-**Last Updated:** 2026-04-12
+**Version:** 1.1
+**Last Updated:** 2026-04-14
 **Primary Channel:** Discord
 **Fallback Channel:** Telegram (if Discord unavailable)
 
@@ -22,9 +22,9 @@
 | Time | Event |
 |------|-------|
 | 8:15 AM daily | Morning Briefing |
-| Random (twice daily) | Mood Check-In |
+| Random (once daily) | Mood Check-In |
 | 4:30 PM Friday | Weekly Win Capture |
-| 9:00 PM daily | End-of-Day Wrap |
+| 9:00 PM daily | End-of-Day Wrap (only if open tasks) |
 | 6:00 PM Sunday | Weekly Memory Report |
 | Event-driven | All other triggers |
 
@@ -46,7 +46,7 @@
 
 ### 1.2 Follow-Up Nudges
 - **Trigger:** Any memory saved containing language patterns: "will do," "need to," "planning to," "going to," "I'll," "follow up," "get back to," "remind me"
-- **Frequency:** Same day the memory is created (within 2 hours of creation if during active hours), then every subsequent day until a resolution memory is logged
+- **Frequency:** Same day the memory is created (within 2 hours of creation if during active hours), then every 2 days until a resolution memory is logged
 - **Resolution condition:** A new memory tagged with the same subject and containing language like "done," "completed," "resolved," "closed," or "decided" cancels the nudge
 - **Format:**
   ```
@@ -56,7 +56,7 @@
 
 ### 1.3 Stale Task Alert
 - **Trigger:** Any `task` memory with `created_at` older than 4 days and no companion resolution memory
-- **Check frequency:** Daily at 8:15 AM (included in Morning Briefing) and again at 9:00 PM if still unresolved
+- **Check frequency:** Daily at 8:15 AM (included in Morning Briefing)
 - **Format:**
   ```
   Stale task flagged: "[TASK CONTENT]" — [X] days old. Still relevant?
@@ -66,6 +66,7 @@
 ### 1.4 End-of-Day Wrap
 - **Time:** 9:00 PM every day
 - **Trigger:** Scheduled
+- **Skip condition:** If zero tasks or follow-ups were flagged during the day, skip the wrap.
 - **Action:** Surface all tasks and follow-ups that were flagged during the day. Prompt for status update on each.
 - **Format:**
   ```
@@ -117,9 +118,7 @@
 - **Format:** Natural. No preamble. Just say the thing.
 
 ### 3.2 Mood Check-In
-- **Frequency:** Twice daily at random times within the following windows:
-  - Window 1: Between 10:00 AM and 1:00 PM
-  - Window 2: Between 4:00 PM and 8:00 PM
+- **Frequency:** Once daily at a random time between 10:00 AM and 8:00 PM
 - **Quiet hours override:** Never during quiet hours
 - **Format:** Casual, single question. Rotate through variations:
   - "How's the day going?"
@@ -301,6 +300,8 @@
 - **Fallback:** If first message is too short or ambiguous to generate a meaningful query, pull the 5 most recent memories by `created_at` instead
 
 ---
+
+
 
 ## Implementation Notes for Aether-7
 
