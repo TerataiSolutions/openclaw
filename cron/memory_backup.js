@@ -4,6 +4,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const fs = require('fs');
 const path = require('path');
+const { logJson } = require('../utils');
 
 const BACKUP_DIR = path.join(__dirname, '../backups');
 
@@ -37,7 +38,7 @@ function cleanupOldBackups(retentionDays = 7) {
         const filepath = path.join(BACKUP_DIR, filename);
         const stats = fs.statSync(filepath);
         if (stats.mtimeMs < cutoff) {
-            console.log(`Deleting old backup: ${filename}`);
+            logJson('info', { message: 'Deleting old backup', filename });
             fs.unlinkSync(filepath);
         }
     });
@@ -45,15 +46,15 @@ function cleanupOldBackups(retentionDays = 7) {
 
 async function main() {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        console.error('Missing Supabase environment variables');
+        logJson('error', { message: 'Missing Supabase environment variables' });
         process.exit(1);
     }
     
     ensureBackupDir();
     
-    console.log('Fetching all memories for backup...');
+    logJson('info', { message: 'Fetching all memories for backup' });
     const memories = await fetchAllMemories();
-    console.log(`Fetched ${memories.length} memories.`);
+    logJson('info', { message: 'Fetched memories', count: memories.length });
     
     // Prepare backup data
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0] + '_' + 
@@ -83,7 +84,7 @@ async function main() {
     const filepath = path.join(BACKUP_DIR, filename);
     
     fs.writeFileSync(filepath, JSON.stringify(backupData, null, 2));
-    console.log(`Backup saved to ${filepath}`);
+    logJson('info', { message: 'Backup saved', filepath });
     
     // Cleanup old backups
     cleanupOldBackups();
@@ -95,13 +96,13 @@ async function main() {
             fs.unlinkSync(latestPath);
         }
         fs.symlinkSync(filepath, latestPath);
-        console.log('Latest backup symlink updated.');
+        logJson('info', { message: 'Latest backup symlink updated' });
     } catch (err) {
-        console.warn('Could not create latest symlink:', err.message);
+        logJson('warn', { message: 'Could not create latest symlink', error: err.message });
     }
 }
 
 main().catch(err => {
-    console.error('Backup failed:', err);
+    logJson('error', { message: 'Backup failed', error: err.message });
     process.exit(1);
 });
