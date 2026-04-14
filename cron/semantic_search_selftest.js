@@ -3,15 +3,16 @@
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { logJson } = require('../utils');
 async function sendDM(message) {
     try {
         const { stdout, stderr } = await execPromise(
             `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
         );
-        if (stderr) console.error('Bridge stderr:', stderr);
+        if (stderr) logJson('error', { message: 'Bridge stderr', stderr });
         return true;
     } catch (err) {
-        console.error('Failed to send via bridge:', err.message);
+        logJson('error', { message: 'Failed to send via bridge', error: err.message });
         return false;
     }
 }
@@ -52,22 +53,22 @@ async function runSelfTest() {
 }
 
 async function main() {
-    console.log('Running semantic search self‑test...');
+    logJson('info', { message: 'Running semantic search self‑test' });
     const testResult = await runSelfTest();
     
     if (!testResult.success) {
         const alertText = `Search self-test failed. ${testResult.message}\nLast successful test: ${new Date().toISOString()}\nRecommend: Manual RPC verification in Supabase.`;
-        console.error(alertText);
+        logJson('error', { message: 'Semantic search self‑test failed', alertText });
         const sent = await sendDM(alertText);
-        if (!sent) console.error('Failed to send Discord alert');
+        if (!sent) logJson('error', { message: 'Failed to send Discord alert' });
         process.exit(1);
     } else {
-        console.log(`Self‑test passed: ${testResult.count} result(s) above threshold, top similarity ${testResult.topSimilarity}`);
+        logJson('info', { message: 'Semantic search self‑test passed', count: testResult.count, topSimilarity: testResult.topSimilarity });
         process.exit(0);
     }
 }
 
 main().catch(err => {
-    console.error('Error during self‑test:', err);
+    logJson('error', { message: 'Error during self‑test', error: err.message });
     process.exit(1);
 });

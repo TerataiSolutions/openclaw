@@ -156,4 +156,13 @@ async function saveMemoryWithEmbedding(memory) {
     return saved ? saved[0] : null;
 }
 
-module.exports = { getEasternHour, isActiveHours, isQuietHours, logLateSession, generateEmbedding, saveMemoryWithEmbedding, retrySupabaseCall };
+function logJson(level, data) {
+    const entry = {
+        timestamp: new Date().toISOString(),
+        level,
+        ...data
+    };
+    console.log(JSON.stringify(entry));
+}
+
+module.exports = { getEasternHour, isActiveHours, isQuietHours, logLateSession, generateEmbedding, saveMemoryWithEmbedding, retrySupabaseCall, logJson };

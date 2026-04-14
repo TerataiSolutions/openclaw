@@ -5,16 +5,17 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { logJson } = require('../utils');
 
 async function sendDM(message) {
     try {
         const { stdout, stderr } = await execPromise(
             `node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`
         );
-        if (stderr) console.error('Bridge stderr:', stderr);
+        if (stderr) logJson('error', { message: 'Bridge stderr', stderr });
         return true;
     } catch (err) {
-        console.error('Failed to send via bridge:', err.message);
+        logJson('error', { message: 'Failed to send via bridge', error: err.message });
         return false;
     }
 }
@@ -71,17 +72,17 @@ async function main() {
 
     if (issues.length > 0) {
         const alertText = `System alert: ${issues.length} memory integrity issue(s) found.\n${issues.slice(0, 5).join('\n')}`;
-        console.error(alertText);
+        logJson('error', { message: 'Memory integrity issues', alertText });
         const sent = await sendDM(alertText);
-        if (!sent) console.error('Failed to send Discord alert');
+        if (!sent) logJson('error', { message: 'Failed to send Discord alert' });
         process.exit(1);
     } else {
-        console.log('Memory integrity check passed. No issues found.');
+        logJson('info', { message: 'Memory integrity check passed', issueCount: 0 });
         process.exit(0);
     }
 }
 
 main().catch(err => {
-    console.error('Error during memory integrity check:', err);
+    logJson('error', { message: 'Error during memory integrity check', error: err.message });
     process.exit(1);
 });
