@@ -1,7 +1,7 @@
 const clients = [
  {
  id: 'opp',
- name: 'OPP Agency',
+ name: 'Opp Agency',
  folder: 'OPP',
  contact_person: 'Kanji Yokai',
  status: 'active'
