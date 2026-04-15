@@ -13,6 +13,7 @@ async function getClientContext(client_id, query) {
  // Always load client state first
  const state = await getClientState(client_id);
 
+ let memories = [];
  // Semantic search with hard client_id filter
  const { data: results, error } = await supabase.rpc('semantic_search_filtered', {
  query_text: query,
@@ -29,13 +30,14 @@ async function getClientContext(client_id, query) {
  .eq('client_id', client_id)
  .order('importance', { ascending: false })
  .limit(5);
- return { state, memories: fallback || [], client: client.name };
- }
-
+ memories = fallback || [];
+ } else {
  // Verify no cross-client contamination -- hard check
  const clean = (results || []).filter(r => r.client_id === client_id);
  if (clean.length !== (results || []).length) {
  console.error(`CROSS-CLIENT CONTAMINATION DETECTED for ${client_id}. Filtered out ${(results || []).length - clean.length} records.`);
+ }
+ memories = clean;
  }
 
  // Audit logging
@@ -44,10 +46,10 @@ async function getClientContext(client_id, query) {
  client_id,
  memory_id: null,
  action: 'getClientContext',
- details: { query, memories_returned: clean.length }
+ details: { query, memories_returned: memories.length }
  });
 
- return { state, memories: clean, client: client.name };
+ return { state, memories, client: client.name };
 }
 
 async function confirmActiveClient(client_id) {
