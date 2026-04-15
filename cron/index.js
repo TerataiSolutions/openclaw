@@ -65,6 +65,12 @@ function startCronManager() {
     // Daily activity prompt — 3 PM Eastern
     cron.schedule('0 15 * * *', () => runScript('daily_activity_prompt.js'), options);
 
+    // Credential rotation reminder — Monday 9 AM Eastern
+    cron.schedule('0 9 * * 1', () => runScript('../security/credential_rotation_reminder.js'), options);
+
+    // Security monitor — every 6 hours
+    cron.schedule('0 */6 * * *', () => runScript('../security/monitor.js'), options);
+
     console.log('Cron manager started (America/New_York timezone). Schedules active.');
 }
 
