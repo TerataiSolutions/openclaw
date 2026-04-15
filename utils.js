@@ -129,6 +129,10 @@ async function saveMemoryWithEmbedding(memory) {
     if (!memory.type || !memory.content) {
         throw new Error('Memory must have type and content');
     }
+    // Validation: client memory types require client_id
+    if (memory.type.startsWith('client_') && !memory.client_id) {
+        throw new Error('client_id is required for client memory types.');
+    }
     // Generate embedding (no retry for Cohere)
     const embedding = await generateEmbedding(memory.content);
     const memoryWithEmbedding = {
