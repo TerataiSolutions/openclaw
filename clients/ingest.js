@@ -4,6 +4,8 @@ const { processFile } = require('./file_processor.js');
 const { saveMemoryWithEmbedding } = require('../utils.js');
 const { updateClientState } = require('./client_state.js');
 const { sendMessage } = require('../cron/message_bridge.js');
+const { sanitizeInput } = require('../security/input_sanitizer.js');
+const { logAuditEvent } = require('../security/audit_logger.js');
 
 async function ingestDocument({ file_content, file_buffer, client_id, document_type_id, file_format, notes = '' }) {
  // Validate client
@@ -37,6 +39,24 @@ async function proceedWithIngestion({ file_content, file_buffer, client_id, docu
  // Process file
  const buffer = file_buffer || Buffer.from(file_content || '', 'utf8');
  const processed = await processFile(buffer, fmt);
+
+ // Security sanitization check
+ const sanitized = sanitizeInput(processed.text, document_type_id);
+ if (!sanitized.safe) {
+ const alertMsg = `INGESTION BLOCKED: ${docType.name} for ${client.name} -- Reason: ${sanitized.reason}. Document has been quarantined. Manual review required before proceeding.`;
+ await sendMessage(alertMsg);
+ 
+ // Log the event
+ await logAuditEvent({
+ event_type: 'injection_detected',
+ client_id,
+ memory_id: null,
+ action: 'ingestion_blocked',
+ details: { reason: sanitized.reason, document_type_id }
+ });
+ 
+ throw new Error(`Ingestion blocked: ${sanitized.reason}`);
+ }
 
  const memories_created = [];
  const folder_path = `${docType.folder}${docType.subfolder ? ' > ' + docType.subfolder : ''}`;
@@ -106,6 +126,15 @@ async function proceedWithIngestion({ file_content, file_buffer, client_id, docu
  // Send completion summary
  const summary = `INGESTION COMPLETE\nClient: ${client.name}\nDocument: ${docType.name}\nSource: ${source_document_name}\nMemories created: ${memories_created.length}\nConfidence: ${docType.confidence_level}\nFolder: ${folder_path}`;
  await sendMessage(summary);
+
+ // Audit log
+ await logAuditEvent({
+ event_type: 'document_ingested',
+ client_id,
+ memory_id: null,
+ action: 'ingestion_completed',
+ details: { document_type: docType.name, memories_count: memories_created.length }
+ });
 
  return { memories_created: memories_created.length, client: client.name, document_type: docType.name, confidence_level: docType.confidence_level };
 }

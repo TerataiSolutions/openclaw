@@ -4,6 +4,55 @@ const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { sanitizeMemoryContent } = require('../security/input_sanitizer.js');
+const fs = require('fs');
+const path = require('path');
+
+// Rate limiting
+const requestCounts = new Map(); // key: minute timestamp, value: count
+const memoryInsertCounts = new Map();
+
+function checkRateLimit(ip, type = 'request') {
+    const minute = Math.floor(Date.now() / 60000);
+    const map = type === 'memory_insert' ? memoryInsertCounts : requestCounts;
+    
+    if (!map.has(minute)) {
+        map.set(minute, new Map());
+    }
+    const minuteMap = map.get(minute);
+    const count = (minuteMap.get(ip) || 0) + 1;
+    minuteMap.set(ip, count);
+    
+    // Clean up old entries (older than 2 minutes)
+    const oldMinute = minute - 2;
+    if (map.has(oldMinute)) {
+        map.delete(oldMinute);
+    }
+    
+    const limit = type === 'memory_insert' ? 10 : 60;
+    return count <= limit;
+}
+
+function logSecurityEvent(source, result, details = {}) {
+    const logsDir = path.join(__dirname, '..', 'logs');
+    if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+    }
+    const securityLog = path.join(logsDir, 'security.log');
+    const entry = JSON.stringify({
+        timestamp: new Date().toISOString(),
+        source,
+        result,
+        ...details
+    });
+    fs.appendFileSync(securityLog, entry + '\n', { encoding: 'utf8' });
+}
+
+function sendDiscordAlert(message) {
+    // Use message_bridge.js to send alert
+    execPromise(`node /data/.openclaw/workspace/cron/message_bridge.js "${message.replace(/"/g, '\\"')}"`)
+        .catch(err => console.error('Failed to send Discord alert:', err.message));
+}
 
 // Language patterns that trigger follow-up nudges
 const NUDGE_PATTERNS = [
@@ -91,7 +140,27 @@ module.exports = async function handleMemoryInsert(req, res) {
     // Validate secret
     if (!validateWebhookSecret(req)) {
         console.warn('Invalid webhook secret');
+        logSecurityEvent('webhook_auth', 'FAILED', { ip: req.ip });
         res.status(401).json({ error: 'Unauthorized' });
+        return;
+    }
+    logSecurityEvent('webhook_auth', 'SUCCESS', { ip: req.ip });
+    
+    // Rate limiting
+    const ip = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    const minute = Math.floor(Date.now() / 60000);
+    
+    // Request rate limit
+    if (!checkRateLimit(ip, 'request')) {
+        logSecurityEvent('rate_limit', 'EXCEEDED', { ip, type: 'request', minute });
+        // Check if sustained for more than 2 minutes
+        const sustained = Array.from(requestCounts.keys())
+            .filter(m => m >= minute - 2)
+            .every(m => (requestCounts.get(m)?.get(ip) || 0) > 60);
+        if (sustained) {
+            sendDiscordAlert(`SUSTAINED HIGH WEBHOOK RATE: ${ip} exceeded 60 RPM for 2+ minutes.`);
+        }
+        res.status(429).json({ error: 'Too many requests' });
         return;
     }
     
@@ -106,6 +175,22 @@ module.exports = async function handleMemoryInsert(req, res) {
     
     if (!content) {
         res.status(400).json({ error: 'No content in memory' });
+        return;
+    }
+    
+    // Memory insert rate limit
+    if (!checkRateLimit(ip, 'memory_insert')) {
+        logSecurityEvent('rate_limit', 'EXCEEDED', { ip, type: 'memory_insert', minute });
+        res.status(429).json({ error: 'Too many memory inserts' });
+        return;
+    }
+    
+    // Content sanitization
+    const sanitized = sanitizeMemoryContent(content);
+    if (!sanitized.safe) {
+        logSecurityEvent('injection_detected', 'BLOCKED', { memoryId: id, reason: sanitized.reason });
+        sendDiscordAlert(`INJECTION DETECTED IN WEBHOOK MEMORY: ${id} -- Reason: ${sanitized.reason}`);
+        res.status(400).json({ error: 'Content rejected by security policy' });
         return;
     }
     

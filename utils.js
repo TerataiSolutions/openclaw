@@ -2,6 +2,7 @@
 const TIMEZONE = 'America/New_York';
 const fs = require('fs');
 const path = require('path');
+const { sanitizeMemoryContent } = require('./security/input_sanitizer.js');
 
 /**
  * Retry a Supabase REST call with one retry after delay.
@@ -132,6 +133,15 @@ async function saveMemoryWithEmbedding(memory) {
     // Validation: client memory types require client_id
     if (memory.type.startsWith('client_') && !memory.client_id) {
         throw new Error('client_id is required for client memory types.');
+    }
+    // Security sanitization
+    const sanitized = sanitizeMemoryContent(memory.content);
+    if (sanitized.tagged) {
+        // Add injection_suspect tag if not already present
+        if (!memory.tags) memory.tags = [];
+        if (!memory.tags.includes('injection_suspect')) {
+            memory.tags.push('injection_suspect');
+        }
     }
     // Generate embedding (no retry for Cohere)
     const embedding = await generateEmbedding(memory.content);

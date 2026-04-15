@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { saveMemoryWithEmbedding } = require('../utils.js');
 const { clients } = require('./registry.js');
+const { logAuditEvent } = require('../security/audit_logger.js');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
@@ -30,7 +31,16 @@ async function getClientState(client_id) {
  if (error) throw new Error(`Failed to fetch client state: ${error.message}`);
  if (!data || data.length === 0) return null;
  try {
- return JSON.parse(data[0].content);
+ const state = JSON.parse(data[0].content);
+ // Audit logging
+ await logAuditEvent({
+ event_type: 'client_state_read',
+ client_id,
+ memory_id: data[0].id,
+ action: 'getClientState',
+ details: { fields_accessed: Object.keys(state).length }
+ });
+ return state;
  } catch (e) {
  throw new Error(`Failed to parse client state JSON: ${e.message}`);
  }
@@ -65,6 +75,16 @@ async function updateClientState(client_id, updates) {
  client_id,
  confidence_level: 'high'
  });
+ 
+ // Audit logging
+ await logAuditEvent({
+ event_type: 'client_data_access',
+ client_id,
+ memory_id: null,
+ action: 'state_update',
+ details: { fields_updated: Object.keys(updates) }
+ });
+ 
  return newState;
 }
 

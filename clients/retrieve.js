@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { clients } = require('./registry.js');
 const { getClientState } = require('./client_state.js');
 const { sendMessage } = require('../cron/message_bridge.js');
+const { logAuditEvent } = require('../security/audit_logger.js');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
@@ -37,6 +38,15 @@ async function getClientContext(client_id, query) {
  console.error(`CROSS-CLIENT CONTAMINATION DETECTED for ${client_id}. Filtered out ${(results || []).length - clean.length} records.`);
  }
 
+ // Audit logging
+ await logAuditEvent({
+ event_type: 'client_data_access',
+ client_id,
+ memory_id: null,
+ action: 'getClientContext',
+ details: { query, memories_returned: clean.length }
+ });
+
  return { state, memories: clean, client: client.name };
 }
 
@@ -44,6 +54,16 @@ async function confirmActiveClient(client_id) {
  const client = clients.find(c => c.id === client_id);
  if (!client) throw new Error(`Invalid client_id: '${client_id}'`);
  await sendMessage(`ACTIVE CLIENT: ${client.name}\nAll actions will be scoped to this client. Confirm? Reply YES to proceed.`);
+ 
+ // Audit logging
+ await logAuditEvent({
+ event_type: 'client_confirmation',
+ client_id,
+ memory_id: null,
+ action: 'confirmActiveClient',
+ details: { client_name: client.name }
+ });
+ 
  return client.name;
 }
 
@@ -67,6 +87,16 @@ async function crossClientAnalysis(query) {
  allResults.push({ client: client.name, client_id: client.id, memories: data });
  }
  }
+ 
+ // Audit logging
+ await logAuditEvent({
+ event_type: 'cross_client_analysis',
+ client_id: null,
+ memory_id: null,
+ action: 'crossClientAnalysis',
+ details: { query, clients_queried: allResults.map(r => r.client_id) }
+ });
+ 
  return allResults; // Always grouped by client, never mixed
 }
 

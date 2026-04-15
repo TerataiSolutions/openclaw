@@ -13,6 +13,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_USER_ID = process.env.DISCORD_USER_ID || '1122248771208757279';
+const { getAuditSummary } = require('../security/audit_logger.js');
 
 // Helper: fetch JSON from Supabase
 async function supabaseFetch(endpoint, options = {}) {
@@ -201,6 +202,53 @@ async function getSearchSelfTest() {
         return { results, top };
     } catch (err) {
         return { results: 0, top: 0 };
+    }
+}
+
+// Helper: fetch security summary
+async function getSecuritySummary() {
+    try {
+        const audit = await getAuditSummary(7);
+        
+        // Read credential manifest
+        const manifestPath = path.join(__dirname, '../security/credentials_manifest.json');
+        let rotationStatus = [];
+        if (fs.existsSync(manifestPath)) {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            const today = new Date();
+            for (const cred of manifest.credentials) {
+                const lastRotated = new Date(cred.last_rotated);
+                const daysSince = Math.floor((today - lastRotated) / (1000 * 60 * 60 * 24));
+                const status = daysSince > cred.rotation_interval_days ? 'OVERDUE' :
+                              daysSince > cred.rotation_interval_days - 14 ? 'DUE_SOON' : 'OK';
+                rotationStatus.push({
+                    name: cred.name,
+                    status,
+                    daysSince,
+                    interval: cred.rotation_interval_days
+                });
+            }
+        }
+        
+        // Count injection attempts from audit log
+        const injectionAttempts = audit.injection_detected || 0;
+        const crossClientEvents = audit.cross_client_analysis || 0;
+        const webhookFailures = audit.webhook_auth_failures || 0; // need to count from logs
+        
+        return {
+            injectionAttempts,
+            crossClientEvents,
+            rotationStatus,
+            auditSummary: audit
+        };
+    } catch (err) {
+        console.error('Failed to get security summary:', err.message);
+        return {
+            injectionAttempts: -1,
+            crossClientEvents: -1,
+            rotationStatus: [],
+            auditSummary: {}
+        };
     }
 }
 
@@ -435,6 +483,20 @@ async function generatePDF() {
     
     const search = await getSearchSelfTest();
     doc.text(`Semantic search self‑test: ${search.results} results, top similarity ${search.top}`);
+    doc.moveDown();
+    
+    // Security Summary
+    const security = await getSecuritySummary();
+    doc.text('Security Summary:', { underline: true });
+    doc.text(`  Injection attempts detected: ${security.injectionAttempts}`);
+    doc.text(`  Cross‑client analysis events: ${security.crossClientEvents}`);
+    doc.text('  Credential rotation status:');
+    security.rotationStatus.forEach(cred => {
+        let statusText = `${cred.name}: ${cred.status}`;
+        if (cred.status === 'OVERDUE') statusText += ` (${cred.daysSince - cred.interval} days overdue)`;
+        if (cred.status === 'DUE_SOON') statusText += ` (${cred.interval - cred.daysSince} days remaining)`;
+        doc.text(`    • ${statusText}`, { indent: 30 });
+    });
     doc.moveDown();
     
     doc.text('System alerts from the past week:');
