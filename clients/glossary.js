@@ -24,6 +24,18 @@ const DOCUMENT_TYPES = {
  file_formats: ['pdf', 'docx'],
  extract_fields: ['opening_statement', 'value_proposition', 'objection_responses', 'closing_statement', 'key_differentiators', 'strategic_notes']
  },
+ client_knowledge_base: {
+  id: 'client_knowledge_base',
+  name: 'Client Knowledge Base',
+  folder: 'Partner Collateral / Deliverables',
+  subfolder: 'Sales Materials',
+  description: 'Comprehensive verified knowledge base document prepared by Opp Agency Sales Enablement Division covering company overview, services, ICP, differentiators, messaging, objection handling, and talk tracks',
+  purpose: 'Master reference document for all client intelligence. High authority source for BDR preparation, call strategy, and campaign development.',
+  confidence_level: 'high',
+  source_type: 'opp_produced',
+  file_formats: ['docx', 'pdf'],
+  extract_fields: ['company_overview', 'services', 'icp', 'differentiators', 'messaging', 'objections', 'talk_tracks', 'approved_claims', 'prohibited_claims']
+ },
  icp_file: {
  id: 'icp_file',
  name: 'ICP File',
