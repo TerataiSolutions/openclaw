@@ -36,7 +36,7 @@ const INJECTION_PATTERNS = [
 
 // Exfiltration patterns - block external URLs except allowed domains
 const EXFILTRATION_PATTERNS = [
-    /https?:\/\/(?!opp\.agency|yourccsteam\.com|sturdy\.ai|senecaglobal\.com|pecan\.ai)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i,
+    /https?:\/\/(?!opp\.agency|yourccsteam\.com|sturdy\.ai|senecaglobal\.com|pecan\.ai|calendly\.com)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i,
     /\bcurl\b.*\bhttp/i,
     /\bfetch\b.*\bhttp/i
 ];

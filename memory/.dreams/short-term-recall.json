@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "updatedAt": "2026-04-28T16:28:18.534Z",
+  "entries": {
+    "memory:memory/2026-04-27.md:262:290": {
+      "key": "memory:memory/2026-04-27.md:262:290",
+      "path": "memory/2026-04-27.md",
+      "startLine": 262,
+      "endLine": 290,
+      "source": "memory",
+      "snippet": "await sendDiscordAlert(`⚠️ Webhook server is DOWN. Last error: ${results.webhook.error}`); } } ``` ### Ingest Failure Alerting (scripts/ingest_transcript.js) - Added Discord alert when `failureCount > 0` after ingest completes: ```js await sendDiscordAlert(`⚠️ Transcript ingest completed with ${failureCount} errors. Check ... for details.`); ``` - Import is inline inside the `if` block to avoid loading discord client for zero-error case. ### Gateway Proxy Architecture - User provided Express proxy routes (`/api/fathom/webhook`, `/api/fathom/health`, `/api/fathom/assign`) that proxy to `localhost:4242`. - **Problem**: No Express server exists in the workspace. The OpenCl",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-28T16:28:18.534Z",
+      "lastRecalledAt": "2026-04-28T16:28:18.534Z",
+      "queryHashes": [
+        "6adc5736f24e"
+      ],
+      "recallDays": [
+        "2026-04-28"
+      ],
+      "conceptTags": [
+        "gateway",
+        "results.webhook.error",
+        "scripts/ingest-transcript.js",
+        "zero-error",
+        "api/fathom/webhook",
+        "api/fathom/health",
+        "api/fathom/assign",
+        "await"
+      ]
+    }
+  }
+}

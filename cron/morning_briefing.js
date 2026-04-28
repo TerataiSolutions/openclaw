@@ -38,7 +38,7 @@ async function fetchOpenTasks() {
         console.error('Failed to fetch tasks after retry');
         return [];
     }
-    
+
     // Get all memories that have a parent_id referencing a task (resolution memories)
     const resUrl = `${SUPABASE_URL}/rest/v1/memories?parent_id=not.is.null&select=parent_id`;
     const resolved = await retrySupabaseCall(async () => {
@@ -54,14 +54,14 @@ async function fetchOpenTasks() {
         }
         return await response.json();
     }) || [];
-    
+
     const resolvedIds = new Set(resolved.map(r => r.parent_id));
     // Filter out tasks that have a resolution
     return tasks.filter(t => !resolvedIds.has(t.id));
 }
 
 async function fetchRedFlagCampaigns() {
-    const url = `${SUPABASE_URL}/rest/v1/memories?type=eq.campaign_metric&tags=cs.{red_flag}&select=content,importance,created_at&order=importance.desc`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?type=eq.campaign_metric&tags=cs.\{red_flag}&select=content,importance,created_at&order=importance.desc`;
     const campaigns = await retrySupabaseCall(async () => {
         const response = await fetch(url, {
             headers: {
@@ -71,15 +71,39 @@ async function fetchRedFlagCampaigns() {
             },
         });
         if (!response.ok) {
-            throw new Error(`Failed to fetch red‑flag campaigns: ${response.statusText}`);
+            throw new Error(`Failed to fetch red-flag campaigns: ${response.statusText}`);
         }
         return await response.json();
     });
     if (!campaigns) {
-        console.warn('Failed to fetch red‑flag campaigns after retry');
+        console.warn('Failed to fetch red-flag campaigns after retry');
         return [];
     }
     return campaigns;
+}
+
+async function fetchRecentExecutiveDecisions() {
+    // Get decisions from the last 24 hours with tags 'executive_decision' AND 'morning_briefing'
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const url = `${SUPABASE_URL}/rest/v1/memories?type=eq.decision&tags=cs.\{executive_decision,morning_briefing\}&created_at=gte.${oneDayAgo}&select=content,created_at&order=created_at.desc`;
+    const decisions = await retrySupabaseCall(async () => {
+        const response = await fetch(url, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch executive decisions: ${response.statusText}`);
+        }
+        return await response.json();
+    });
+    if (!decisions) {
+        console.warn('Failed to fetch executive decisions after retry');
+        return [];
+    }
+    return decisions;
 }
 
 async function fetchGoalOrFrustrationMemory(queryText) {
@@ -91,7 +115,7 @@ async function fetchGoalOrFrustrationMemory(queryText) {
         const results = JSON.parse(stdout);
         if (Array.isArray(results) && results.length > 0) {
             // Filter for memories that mention goal/frustration/work/improve
-            const relevant = results.find(r => 
+            const relevant = results.find(r =>
                 r.content.toLowerCase().includes('goal') ||
                 r.content.toLowerCase().includes('frustrat') ||
                 r.content.toLowerCase().includes('workflow') ||
@@ -109,69 +133,79 @@ async function fetchGoalOrFrustrationMemory(queryText) {
 
 async function generateDailyInsight(openTasks, redFlagCampaigns) {
     if (openTasks.length === 0 && redFlagCampaigns.length === 0) return null;
-    
+
     // Determine most pressing task
     const mostPressingTask = openTasks.length > 0 ? openTasks[0] : null;
-    
+
     // Build insight components
     const components = [];
-    
-    // Red‑flag summary
+
+    // Red-flag summary
     if (redFlagCampaigns.length > 0) {
         const topFlag = redFlagCampaigns[0];
-        components.push(`🚨 **Red‑flag campaign**: ${topFlag.content.substring(0, 100)}`);
+        components.push(`🚨 **Red-flag campaign**: ${topFlag.content.substring(0, 100)}`);
         if (redFlagCampaigns.length > 1) {
-            components.push(`(${redFlagCampaigns.length - 1} more red‑flag${redFlagCampaigns.length > 2 ? 's' : ''} outstanding)`);
+            components.push(`(${redFlagCampaigns.length - 1} more red-flag${redFlagCampaigns.length > 2 ? 's' : ''} outstanding)`);
         }
     }
-    
+
     // Task connection
     if (mostPressingTask) {
         const query = `professional goal frustration ${mostPressingTask.content.substring(0, 50)}`;
         const goalMemory = await fetchGoalOrFrustrationMemory(query);
         if (goalMemory) {
-            components.push(`📌 **Task link**: "${mostPressingTask.content.substring(0, 80)}…"`);
-            components.push(`   ↳ *Connected to*: ${goalMemory.substring(0, 120)}…`);
+            components.push(`📌 **Task link**: "${mostPressingTask.content.substring(0, 80)}..."`);
+            components.push(`   ↳ *Connected to*: ${goalMemory.substring(0, 120)}...`);
         } else {
             components.push(`📌 **Top task**: ${mostPressingTask.content.substring(0, 100)} (importance ${mostPressingTask.importance})`);
         }
     }
-    
+
     if (components.length === 0) return null;
     return components.join('\n');
 }
 
 async function main() {
     if (!isActiveHours()) {
-        console.log('Outside active hours (7:00 AM – 11:00 PM UTC). Skipping.');
+        console.log('Outside active hours (7:00 AM - 11:00 PM UTC). Skipping.');
         return;
     }
-    
+
     console.log('Fetching open tasks...');
     const openTasks = await fetchOpenTasks();
     console.log('Open tasks count:', openTasks.length);
-    
+
     if (openTasks.length === 0) {
         await sendDM('No open tasks. Clean slate.');
         return;
     }
-    
-    console.log('Fetching red‑flag campaigns...');
+
+    console.log('Fetching red-flag campaigns...');
     const redFlagCampaigns = await fetchRedFlagCampaigns();
-    
+
+    // Fetch executive decisions from last 24h
+    const executiveDecisions = await fetchRecentExecutiveDecisions();
+
     // Format tasks
-    const taskList = openTasks.map(t => 
+    const taskList = openTasks.map(t =>
         `• ${t.content.substring(0, 120)} (importance: ${t.importance})`
     ).join('\n');
-    
+
     // Generate daily insight
     const insight = await generateDailyInsight(openTasks, redFlagCampaigns);
-    
+
     let message = `Good morning. Here is what is open:\n${taskList}\nWhat are we closing today?`;
-    if (insight) {
-        message += `\n\n🔍 **Today’s focus**\n${insight}`;
+    
+    // Add executive decisions if any
+    if (executiveDecisions.length > 0) {
+        message += `\n\n**Executive Decisions (Last 24h)**\n` +
+            executiveDecisions.map(d => `• ${d.content.slice(0, 300)}`).join('\n');
     }
     
+    if (insight) {
+        message += `\n\n🔍 **Today's focus**\n${insight}`;
+    }
+
     console.log('Sending morning briefing...');
     const sent = await sendDM(message);
     if (!sent) {

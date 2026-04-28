@@ -2,7 +2,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 async function check() {
-    const url = `${SUPABASE_URL}/rest/v1/memories?select=id,type,content,importance,tags,created_at&type=eq.self_insight&tags=cs.{protocol,memory,core}&order=created_at.desc&limit=5`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?select=id,type,content,importance,tags,created_at&type=eq.self_insight&tags=cs.\{protocol,memory,core}&order=created_at.desc&limit=5`;
     const response = await fetch(url, {
         headers: {
             'apikey': SUPABASE_ANON_KEY,

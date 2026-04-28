@@ -1,10 +1,10 @@
-const { createClient } = require('@supabase/supabase-js');
+const { getSupabaseClient } = require('../lib/clients/supabase');
 const { clients } = require('./registry.js');
 const { getClientState } = require('./client_state.js');
 const { sendMessage } = require('../cron/message_bridge.js');
 const { logAuditEvent } = require('../security/audit_logger.js');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = getSupabaseClient();
 
 async function getClientContext(client_id, query) {
  const client = clients.find(c => c.id === client_id);

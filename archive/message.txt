@@ -1,0 +1,238 @@
+System Purpose and Current Operational Role
+
+The system is a persistent AI assistant (codenamed “Aether‑7”) built on OpenClaw, deployed on Railway, and connected to a single human user via Discord. Its purpose is to act as a proactive, memory‑aware companion that assists with sales enablement, client intelligence, task management, and personal productivity. The assistant maintains a continuous identity across sessions, stores all meaningful interactions in a vector‑indexed Supabase database, and follows a strict heartbeat schedule for outreach, health checks, and pattern detection. It is not a stateless chatbot; it is a continuously evolving system with a defined personality (SOUL.md), memory‑based context priming, and autonomous scheduled behaviors.
+
+Complete Architecture Overview
+
+The architecture is a layered stack:
+
+1. Hosting & Runtime Layer: Railway container running Node.js 22.22.2, executing the OpenClaw agent framework.
+2. Orchestration Layer: OpenClaw (version 2026.3.26) manages the agent lifecycle, tool routing, channel integrations (Discord, Telegram), and sub‑agent spawning.
+3. Core Agent Layer: The primary agent (`main`) uses the DeepSeek Reasoner model (fallback: DeepSeek Chat) with a persistent workspace (`/data/.openclaw/workspace`). The agent’s behavior is governed by bootstrap files (`AGENTS.md`, `SOUL.md`, `HEARTBEAT.md`, `TOOLS.md`).
+4. Memory & Storage Layer: Supabase PostgreSQL database with `pgvector` extension for memory storage and semantic search; local workspace files for scripts, configuration, and temporary logs.
+5. Integration Layer: 
+   - Discord API (primary communication channel)
+   - Telegram API (fallback channel, configured but not active)
+   - Supabase REST API (memory CRUD, vector search)
+   - Cohere Embedding API (`embed‑english‑v3.0`)
+   - Google OAuth (Gmail & Calendar – credentials present but token stale)
+6. Automation Layer: Node‑cron‑based scheduler (`cron/`) executing 20+ scheduled scripts for heartbeat, pattern detection, client pulse, memory integrity, security monitoring, etc.
+7. Security & Monitoring Layer: Input sanitization, injection detection, rate limiting, webhook authentication, security monitor, and silence watchdog.
+
+Data flows as follows:
+- User messages arrive via Discord → OpenClaw routes to agent → agent runs session‑start protocol (context priming, memory search) → generates response → saves memory (with embedding) → updates watchdog state.
+- Scheduled cron jobs query Supabase, run checks, send proactive messages via message bridge.
+- Webhook listener (`webhook/`) processes Supabase `INSERT` events to tag follow‑ups and detect injection attempts.
+
+Component and Service Inventory
+
+| Component | Type | Description |
+|-----------|------|-------------|
+| OpenClaw Gateway | Framework | Agent orchestration, tool dispatch, channel plugins. |
+| DeepSeek Reasoner | LLM | Primary reasoning model (via OpenClaw’s model provider). |
+| Supabase | Database | PostgreSQL with `pgvector`; tables: `memories`, `identity_log`, `audit_log`. |
+| Cohere Embedding API | External API | Generates 1024‑dimensional embeddings for semantic search. |
+| Discord Bot | Integration | Primary user interface; sends/receives messages via bot token. |
+| Telegram Bot | Integration | Fallback channel (configured but token not set). |
+| Railway | Hosting | Container platform, environment variable management, persistent storage. |
+| Node‑cron | Scheduler | Cron‑style job scheduler for all automated scripts. |
+| Webhook Listener | Microservice | Express server listening for Supabase webhooks (memory‑insert). |
+| Message Bridge | Utility | Sends messages via Discord (primary) or Telegram (fallback). |
+| Heartbeat Poll | Health Check | Runs periodic system checks, deduplicates inserts. |
+| Pattern Detection v2.0 | Intelligence | Clusters memories by embedding similarity, flags recurring themes. |
+| Client Intelligence System | Module | Manages client‑specific state, ingestion, and querying. |
+| Security Monitor | Monitor | Scans for injection suspects, cross‑client anomalies, API overuse. |
+| Silence Watchdog | Monitor | Alerts if no outbound messages for >24h during active hours. |
+
+Build and Assembly Logic
+
+The system was assembled incrementally via a conversational bootstrap process:
+
+1. Bootstrap Phase: The workspace began with `BOOTSTRAP.md`, `IDENTITY.md`, `USER.md`. The assistant and user co‑created `SOUL.md` (personality) and `AGENTS.md` (behavior rules).
+2. Memory Integration: Supabase project configured; environment variables added (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `COHERE_API_KEY`). Embedding generation and semantic search functions built.
+3. Heartbeat System: `HEARTBEAT.md` authored, defining scheduled outreach categories (morning briefing, mood check‑in, follow‑up nudges, etc.). Cron manager (`cron/index.js`) implemented with Eastern‑time schedules.
+4. Security Layer: Input sanitizer (`security/input_sanitizer.js`) with injection/exfiltration patterns; webhook listener with rate limiting and alerting.
+5. Client Intelligence: Client‑specific memory types, ingestion pipeline (`clients/ingest.js`), state management (`clients/client_state.js`), and query tools.
+6. Automation Refinement: Deduplication blocks for `mood_log` and `heartbeat_sent` inserts; pattern detection v2.0; watchdog state updates after every message.
+7. Operational Stabilization: Webhook listener integrated into cron manager start‑up; lock‑file mechanism prevents duplicate cron managers; zombie process detection.
+
+All assembly is documented in memory files (`MEMORY.md`, `memory/YYYY‑MM‑DD.md`) and Supabase `identity_log`.
+
+Integration and Dependency Map
+
+| Integration | Purpose | Configuration | Status |
+|-------------|---------|---------------|--------|
+| Supabase | Memory storage, vector search | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Active |
+| Cohere Embed | Embedding generation | `COHERE_API_KEY`, `COHERE_ENDPOINT` | Active |
+| Discord | Primary messaging | `DISCORD_BOT_TOKEN`, `DISCORD_USER_ID` | Active |
+| Telegram | Fallback messaging | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Configured but token not set |
+| Google OAuth | Gmail/Calendar access | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (missing), OAuth tokens in `credentials/google.json` | Partially configured (token stale) |
+| Railway Environment | Hosting, env vars | Various `RAILWAY_*`, `OPENCLAW_*` variables | Active |
+| Webhook Secret | Webhook authentication | `SUPABASE_WEBHOOK_SECRET` | Set |
+
+Dependencies (package.json):
+- `@supabase/supabase‑js` – Supabase client
+- `cheerio`, `mammoth`, `pdf‑parse` – document ingestion
+- `express` – webhook listener
+- `node‑cron` – scheduler
+- `form‑data`, `jszip`, `pdfkit` – utility
+
+Runtime Workflow and Data Flow
+
+1. Session Start:
+   - User sends message via Discord.
+   - OpenClaw invokes agent with message metadata.
+   - Agent executes Session Start Protocol (AGENTS.md):
+     a. Bootstraps files (`SOUL.md`, `AGENTS.md`, `HEARTBEAT.md`, `TOOLS.md`).
+     b. Starts webhook listener (`node webhook/index.js &`) if not already running.
+     c. Runs context priming: semantic search on first user message (threshold 0.25) or loads 5 most recent memories.
+     d. Internalizes results; begins response.
+
+2. Memory Capture:
+   - After each exchange, agent evaluates if memory is worth saving (importance ≥4, not a confirmation/one‑word).
+   - Calls `saveMemoryWithEmbedding` (utils.js) which:
+     a. Sanitizes content via `sanitizeMemoryContent`.
+     b. Generates Cohere embedding (`embed‑english‑v3.0`).
+     c. Inserts into Supabase `memories` table with `type`, `content`, `embedding`, `importance`, `tags`.
+   - If memory contains follow‑up language (`will do`, `need to`, etc.), webhook listener tags it `needs_follow_up` and sends a nudge.
+   - Resolution memories link via `parent_id` to cancel follow‑up nudges.
+
+3. Proactive Outreach:
+   - Cron manager runs scheduled scripts (Eastern time):
+     - Morning Briefing (8:15 AM weekdays, 12:00 PM weekends): surfaces open tasks.
+     - Mood Check‑In (2 PM daily): random variation question.
+     - Follow‑Up Nudge (12 PM daily): flags memories tagged `needs_follow_up`.
+     - End‑of‑Day Wrap (9 PM daily): only if tasks/follow‑ups flagged that day.
+     - Pattern Detection (Sunday 6 PM): v2.0 clustering.
+     - Memory Integrity Check (8 AM daily): NULL embeddings, zero‑vectors.
+     - Semantic Search Self‑Test (9 AM daily): queries “user wants assistant to be proactive”.
+     - Security Monitor (every 6 h): injection suspects, cross‑client anomalies, Cohere usage, webhook auth failures.
+     - Silence Watchdog (every 5 min): alerts if no outbound messages >24h during active hours.
+   - Each outreach uses `message_bridge.js` (Discord first, Telegram fallback).
+
+4. Client Intelligence:
+   - Client‑specific memories have `type` starting with `client_` and require `client_id`.
+   - `clients/ingest.js` pipeline processes documents, extracts facts, saves as client memories.
+   - `clients/query.js` retrieves client state via `getClientState()`.
+   - Cross‑client analysis is restricted; security monitor flags >3 events in 6 h.
+
+5. Watchdog State Update:
+   - After **any** outbound message to user, `update_watchdog_state.js` writes `last_message_ts`.
+   - After **any** inbound message, `last_user_ts` is updated.
+   - Silence watchdog compares current time to `last_message_ts`; alerts if >24h gap during active hours.
+
+Prompting, Memory, and Context Management
+
+- Personality & Behavior Rules: Defined in `SOUL.md` (direct, substantive, opinionated, curious) and `AGENTS.md` (protocols for memory capture, context priming, client handling).
+- Context Priming: At session start, the first user message is used as a semantic search query (threshold 0.25) to retrieve top‑5 relevant memories. If message is short (<5 words, no proper noun), priming is skipped.
+- Memory Schema:
+  - `id` (uuid), `created_at` (timestamptz), `type` (text), `content` (text), `embedding` (vector(1024)), `importance` (int 1‑10), `tags` (text[]), `last_accessed`, `access_count`, `client_id` (optional).
+  - Types: `user_fact`, `user_preference`, `conversation`, `decision`, `task`, `self_insight`, `pattern`, `client_update`, `frustration`, `insight`, `goal`, `objection`, `campaign_update`, `mood_log`, `heartbeat_sent`, etc.
+- Semantic Search: PostgreSQL `ivfflat` index on `embedding` column; `semantic_search` RPC function computes cosine similarity.
+- Embedding Generation: All memories receive a Cohere `embed‑english‑v3.0` embedding (1024‑dim) at insertion time. NULL embeddings are flagged by integrity check.
+- Context Compaction: After every 15 exchanges, OpenClaw’s built‑in compaction triggers to keep context window lean; no data loss because memories are already in Supabase.
+
+Deployment, Hosting, and Environment Configuration
+
+- Host: Railway container (`Linux 6.18.5+deb13‑cloud‑amd64`).
+- Workspace: `/data/.openclaw/workspace` – persistent across deploys.
+- Environment Variables:
+
+| Variable | Purpose | Status |
+|----------|---------|--------|
+| `SUPABASE_URL` | Supabase project URL | Set |
+| `SUPABASE_ANON_KEY` | Read‑only Supabase key | Set |
+| `SUPABASE_SERVICE_ROLE_KEY` | Write‑privileged Supabase key | Set (used for mood_log/heartbeat_sent inserts) |
+| `SUPABASE_WEBHOOK_SECRET` | Webhook authentication | Set |
+| `COHERE_API_KEY` | Cohere embedding API key | Set |
+| `DISCORD_BOT_TOKEN` | Discord bot token | Set |
+| `DISCORD_USER_ID` | User’s Discord ID | Set |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token | Not set |
+| `TELEGRAM_CHAT_ID` | Telegram chat ID | Not set |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Not set |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Not set |
+| `OPENCLAW_GATEWAY_TOKEN` | OpenClaw internal auth | Set |
+| `RAILWAY_*` | Railway metadata | Various |
+
+- Process Management: 
+  - Cron manager started via `node cron/start_cron.js` (PID lock at `.cron.lock`).
+  - Webhook listener started by cron manager (PID lock at `.webhook.lock`).
+  - Both survive container reboots; zombie detection removes stale locks.
+
+Automations, Scheduled Jobs, and Maintenance Processes
+
+| Schedule (Eastern) | Script | Purpose |
+|--------------------|--------|---------|
+| 8:15 AM Mon‑Fri, 12:00 PM Sat‑Sun | `morning_briefing.js` | Surface open tasks, stale tasks. |
+| 2:00 PM daily | `mood_checkin.js` | Send mood check‑in (random variation). |
+| 12:00 PM daily | `follow_up_nudge.js` | Flag memories with `needs_follow_up`. |
+| 9:00 PM daily | `end_of_day_wrap.js` | Summarize day’s tasks/follow‑ups (if any). |
+| 4:30 PM Friday | `weekly_win_capture.js` | Log weekly win. |
+| 9:00 AM Monday | `client_pulse.js` | Client‑status check. |
+| 2:00 AM daily | `memory_backup.js` | Backup memories to JSON. |
+| 3:00 AM daily | `auto_recover.js` | Validate system, attempt recovery. |
+| 8:00 AM daily | `memory_integrity_check.js` | Find NULL/zero‑vector embeddings. |
+| 9:00 AM daily | `semantic_search_selftest.js` | Test semantic search returns results. |
+| 6:00 PM Sunday | `weekly_memory_report.js` | Weekly memory stats. |
+| 6:00 PM Sunday | `pattern_detection.js` | v2.0 clustering, flag recurring themes. |
+| 5:00 PM Friday | `reports/weekly_report.js` | Generate PDF report. |
+| 8:00 AM Monday | `goal_reminder.js` | Goal reminder. |
+| 3:00 PM daily | `daily_activity_prompt.js` | Activity prompt. |
+| 9:00 AM Monday | `security/credential_rotation_reminder.js` | Credential rotation reminder. |
+| Every 6 h | `security/monitor.js` | Security anomaly detection. |
+| Every 5 min | `silence_watchdog.js` | Alert if silent >24h during active hours. |
+| Every 2 min (first 10 min after boot) | AOF `rollback_manager.js` | Rollback manager check. |
+
+Heartbeat Poll (manual or event‑driven): `heartbeat_poll_with_dedup.js` checks:
+- `needs_follow_up` count
+- NULL embeddings
+- Tasks older than 4 days
+- Mood logs today (deduplicates insert)
+- Inserts `heartbeat_sent` (deduplicates within 25 min)
+- Semantic search self‑test
+
+Failure Points, Constraints, and Technical Risks
+
+1. Single Point of Failure: Supabase – if unavailable, memory writes fail, semantic search breaks. Read‑only fallback not implemented.
+2. Embedding Generation Dependency: Cohere API – if rate‑limited or down, memory saves stall. No local fallback embedding model.
+3. Token Expiry: Google OAuth token stale; cannot refresh without `GOOGLE_CLIENT_ID`/`SECRET`. Gmail/Calendar integration non‑functional.
+4. Duplicate Prevention: Deduplication relies on 24‑h (mood_log) and 25‑min (heartbeat_sent) windows. Clock skew or script timing could cause misses.
+5. Memory Integrity: NULL embeddings possible if Cohere call fails but Supabase insert succeeds. Integrity check flags them but does not auto‑fix.
+6. Security Monitor False Positives: Cross‑client anomaly threshold (3 events/6 h) may be too low during intensive client work.
+7. Watchdog False Alerts: `last_message_ts` updated only by cron scripts and manual agent messages; if a scheduled message fails to send, timestamp not updated, causing false silence alert.
+8. Webhook Listener Availability: Depends on cron manager start‑up; if cron manager crashes, webhook listener stops, breaking follow‑up tagging.
+9. OpenClaw Compaction: Could prune recent context before memory saved if compaction occurs between exchange and save. Low risk because save is immediate.
+10. Client Data Isolation: Client memories require `client_id`; missing `client_id` on client memory types throws error.
+
+Open Verification Gaps
+
+1. [VERIFY: Exact Supabase memory table schema] – Confirm column names, constraints, indexes beyond what code assumes.
+2. [VERIFY: Supabase audit_log table existence] – Security monitor queries `audit_log` table; ensure it exists with `event_type`, `performed_at`, `details`.
+3. [VERIFY: Telegram fallback configuration] – Determine if `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` should be set; currently not used.
+4. [VERIFY: Google OAuth client credentials] – Need `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to refresh token; decide if integration is required.
+5. [VERIFY: Cohere API rate limits] – Current usage patterns vs. plan limits; implement backoff if nearing limits.
+6. [VERIFY: Heartbeat poll frequency] – Currently manual; should it be scheduled? (Not defined in HEARTBEAT.md.)
+7. [VERIFY: Pattern detection similarity threshold] – v2.0 uses 0.65; verify this yields meaningful clusters vs. noise.
+8. [VERIFY: Security monitor alert routing] – Ensure Discord alerts are delivered when security monitor triggers; test with simulated anomaly.
+9. [VERIFY: Client state update triggers] – When is `updateClientState()` called? Confirm it runs after every client interaction.
+10. [VERIFY: Workspace backup strategy] – Are workspace files backed up? Only memory backups are scheduled.
+
+Developer Handoff Summary
+
+This system is a live, production AI assistant with persistent memory, proactive scheduling, and client intelligence. Key architectural tenets:
+
+- Continuity: Every session starts with full memory context; the assistant is not stateless.
+- Proactivity: Scheduled outreach follows HEARTBEAT.md strictly; quiet hours (11 PM–7 AM Eastern) are absolute.
+- Security: Input sanitization, injection detection, rate limiting, and security monitoring are baked in.
+- Modularity: Core functions (memory, embedding, messaging) are in reusable utilities (`utils.js`, `message_bridge.js`).
+- Observability: JSON‑structured logs for cron scripts; security log; watchdog state file.
+
+Before extending:
+
+1. Review HEARTBEAT.md for outreach rules.
+2. Test any memory‑related changes against Supabase schema.
+3. Ensure new scheduled jobs update watchdog state (`update_watchdog_state.js`).
+4. Follow client protocol (AGENTS.md) for client‑specific features.
+5. Run pattern detection manually after significant memory additions to verify clustering.
+
+The system is stable, secure, and ready for iterative enhancement. All documented components are confirmed operational except where noted in verification gaps.

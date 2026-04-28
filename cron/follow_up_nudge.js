@@ -25,7 +25,7 @@ async function sendDM(message) {
 
 async function fetchNeedsFollowUpMemories() {
     // Fetch memories with tag 'needs_follow_up'
-    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{needs_follow_up}&select=id,content,created_at`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.\{needs_follow_up}&select=id,content,created_at`;
     const response = await fetch(url, {
         headers: {
             'apikey': SUPABASE_ANON_KEY,

@@ -2,8 +2,7 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const COHERE_API_KEY = process.env.COHERE_API_KEY;
-const COHERE_ENDPOINT = 'https://api.cohere.ai/v1/embed';
+const { generateEmbedding } = require('../lib/clients/cohere');
 const fs = require('fs');
 const path = require('path');
 
@@ -30,33 +29,6 @@ async function loadBackup(backupPath) {
     }
     const data = fs.readFileSync(backupPath, 'utf8');
     return JSON.parse(data);
-}
-
-async function generateEmbedding(text) {
-    if (!COHERE_API_KEY) {
-        throw new Error('COHERE_API_KEY not set');
-    }
-    
-    const response = await fetch(COHERE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${COHERE_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            texts: [text],
-            model: 'embed-english-v3.0',
-            input_type: 'search_document'
-        }),
-    });
-    
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Cohere API error: ${response.status} ${error}`);
-    }
-    
-    const result = await response.json();
-    return result.embeddings[0];
 }
 
 async function restoreMemory(memory, force = false) {

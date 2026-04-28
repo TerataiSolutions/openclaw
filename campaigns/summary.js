@@ -40,7 +40,7 @@ function parseMetricContent(content) {
  * Fetch all campaign metrics for a given week.
  */
 async function fetchWeekMetrics(week) {
-    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{campaign_metric}&select=id,content,tags,created_at`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.\{campaign_metric}&select=id,content,tags,created_at`;
     const response = await fetch(url, {
         headers: {
             'apikey': SUPABASE_ANON_KEY,

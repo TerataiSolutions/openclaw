@@ -1,9 +1,9 @@
-const { createClient } = require('@supabase/supabase-js');
+const { getSupabaseClient } = require('../lib/clients/supabase');
 const { saveMemoryWithEmbedding } = require('../utils.js');
 const { clients } = require('./registry.js');
 const { logAuditEvent } = require('../security/audit_logger.js');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = getSupabaseClient();
 
 const BLANK_STATE = {
  current_campaign_strategy: 'Not yet established',

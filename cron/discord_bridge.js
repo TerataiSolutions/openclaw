@@ -1,69 +1,21 @@
 #!/usr/bin/env node
 
 /**
- * Discord Bridge – sends a Discord DM directly via REST API.
+ * Discord Bridge – sends a Discord message to configured channel (or DM).
  * Usage: node discord_bridge.js "Your message here"
+ *
+ * Thin CLI wrapper around lib/clients/discord for backward compatibility.
  */
 
-const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-const DISCORD_USER_ID = process.env.DISCORD_USER_ID || '1122248771208757279'; // fallback to Kanji.Yokai
-
-if (!DISCORD_BOT_TOKEN) {
-    console.error('Error: DISCORD_BOT_TOKEN environment variable not set.');
-    process.exit(1);
-}
-
-async function getDMChannel() {
-    // Create or retrieve DM channel with the user
-    const url = 'https://discord.com/api/v10/users/@me/channels';
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ recipient_id: DISCORD_USER_ID }),
-        });
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Discord API ${response.status}: ${error}`);
-        }
-        const data = await response.json();
-        return data.id;
-    } catch (err) {
-        console.error('Failed to get DM channel:', err.message);
-        return null;
-    }
-}
+const { sendDiscordMessage } = require('../lib/clients/discord');
+const DISCORD_CHANNEL_ID = process.env.DISCORD_CHANNEL_ID || '1486849626597490870';
+const DISCORD_USER_ID = process.env.DISCORD_USER_ID || '1122248771208757279';
 
 async function sendDM(message) {
-    const channelId = await getDMChannel();
-    if (!channelId) {
-        console.error('Cannot send message: no DM channel.');
-        return false;
+    if (DISCORD_CHANNEL_ID) {
+        return sendDiscordMessage(DISCORD_CHANNEL_ID, message);
     }
-    
-    const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ content: message }),
-        });
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Discord API ${response.status}: ${error}`);
-        }
-        console.log('Discord DM sent successfully.');
-        return true;
-    } catch (err) {
-        console.error('Failed to send DM:', err.message);
-        return false;
-    }
+    return sendDiscordMessage(DISCORD_USER_ID, message);
 }
 
 async function main() {
@@ -73,7 +25,6 @@ async function main() {
         process.exit(1);
     }
     const message = args.join(' ');
-    
     const success = await sendDM(message);
     process.exit(success ? 0 : 1);
 }

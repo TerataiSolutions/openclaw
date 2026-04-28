@@ -2,32 +2,7 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const COHERE_API_KEY = process.env.COHERE_API_KEY;
-const COHERE_ENDPOINT = 'https://api.cohere.ai/v1/embed';
-
-async function generateEmbedding(text, model = 'embed-english-v3.0', input_type = 'search_query') {
-    const response = await fetch(COHERE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${COHERE_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model,
-            texts: [text],
-            input_type,
-        }),
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Cohere API error ${response.status}: ${errorText}`);
-    }
-    const result = await response.json();
-    if (!result.embeddings || !Array.isArray(result.embeddings) || result.embeddings.length === 0) {
-        throw new Error('Cohere response missing embeddings');
-    }
-    return result.embeddings[0];
-}
+const { generateEmbedding } = require('./lib/clients/cohere');
 
 async function rpcSemanticSearch(queryEmbedding, match_threshold = 0.25, match_count = 10) {
     const url = `${SUPABASE_URL}/rest/v1/rpc/semantic_search`;
@@ -109,7 +84,7 @@ async function main() {
     const threshold = args[2] ? parseFloat(args[2]) : 0.25;
 
     console.error(`Generating embedding for query: "${query}"`);
-    const queryEmbedding = await generateEmbedding(query);
+    const queryEmbedding = await generateEmbedding(query, 'search_query');
     console.error(`Query embedding length: ${queryEmbedding.length}`);
 
     // Try RPC first

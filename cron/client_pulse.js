@@ -24,7 +24,7 @@ async function sendDM(message) {
 
 async function fetchRotationState() {
     // Look for a memory tagged 'client_pulse_state'
-    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{client_pulse_state}&select=id,content&order=created_at.desc&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.\{client_pulse_state}&select=id,content&order=created_at.desc&limit=1`;
     const states = await retrySupabaseCall(async () => {
         const response = await fetch(url, {
             headers: {

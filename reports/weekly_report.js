@@ -142,7 +142,7 @@ async function getUnresolvedTasks() {
 
 // Helper: fetch pending follow-ups
 async function getPendingFollowUps() {
-    const memories = await supabaseFetch('/rest/v1/memories?tags=cs.{needs_follow_up}&select=id,content,created_at');
+    const memories = await supabaseFetch('/rest/v1/memories?tags=cs.\{needs_follow_up}&select=id,content,created_at');
     return memories;
 }
 

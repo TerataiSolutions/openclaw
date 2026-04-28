@@ -2,33 +2,11 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const COHERE_API_KEY = process.env.COHERE_API_KEY;
-const COHERE_ENDPOINT = 'https://api.cohere.ai/v1/embed';
+const { generateEmbedding } = require('../lib/clients/cohere');
 
 /**
  * Generate embedding for a query using Cohere.
  */
-async function generateEmbedding(text) {
-    const response = await fetch(COHERE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${COHERE_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            texts: [text],
-            model: 'embed-english-v3.0',
-            input_type: 'search_query',
-        }),
-    });
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Cohere API error: ${err}`);
-    }
-    const data = await response.json();
-    return data.embeddings[0];
-}
-
 /**
  * Perform semantic search for a client.
  * @param {string} clientId - client ID from registry
@@ -38,7 +16,7 @@ async function generateEmbedding(text) {
  */
 async function queryClient(clientId, query, limit = 5) {
     // Generate embedding for the query
-    const embedding = await generateEmbedding(query);
+    const embedding = await generateEmbedding(query, 'search_query');
     
     // Call semantic_search RPC filtered by client tag
     const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/semantic_search`;

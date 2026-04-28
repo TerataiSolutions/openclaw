@@ -1,0 +1,27 @@
+{
+  "memoryRead": {
+    "available": true,
+    "reason": "Initial state",
+    "lastChanged": "2026-04-27T06:37:30.720Z"
+  },
+  "memoryWrite": {
+    "available": true,
+    "reason": "Initial state",
+    "lastChanged": "2026-04-27T06:37:30.720Z"
+  },
+  "semanticSearch": {
+    "available": true,
+    "reason": "Initial state",
+    "lastChanged": "2026-04-27T06:37:30.720Z"
+  },
+  "deepseekReasoner": {
+    "available": true,
+    "reason": "Initial state",
+    "lastChanged": "2026-04-27T06:37:30.720Z"
+  },
+  "discordMessaging": {
+    "available": true,
+    "reason": "All dependencies healthy",
+    "lastChanged": "2026-04-27T19:00:00.699Z"
+  }
+}

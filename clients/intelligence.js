@@ -30,7 +30,7 @@ async function fetchHTML(url) {
  * Delete existing client_intel memories for a given client.
  */
 async function deleteExistingClientIntel(client) {
-    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{${client.id}}&type=eq.client_intel&select=id`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.\{${client.id}}&type=eq.client_intel&select=id`;
     const existing = await retrySupabaseCall(async () => {
         const response = await fetch(url, {
             headers: {

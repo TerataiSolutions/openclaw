@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 async function deleteWeek16Memories() {
     console.log('Fetching week_16 campaign_metric and personal_performance memories...');
     // Fetch memories with tags containing week_16 and type in the list
-    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.{week_16}&type=in.(campaign_metric,personal_performance)&select=id,type,content,tags`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?tags=cs.\{week_16}&type=in.(campaign_metric,personal_performance)&select=id,type,content,tags`;
     const response = await fetch(url, {
         headers: {
             'apikey': SUPABASE_ANON_KEY,

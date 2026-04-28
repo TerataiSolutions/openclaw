@@ -5,8 +5,13 @@
  * Usage: node message_bridge.js "Your message here"
  */
 
+const path = require('path');
+const { enqueue } = require('./message_queue.js');
+const { setCapabilityStatus } = require('./capability_monitor.js');
+
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_USER_ID = process.env.DISCORD_USER_ID || '1122248771208757279';
+const DISCORD_CHANNEL_ID = process.env.DISCORD_CHANNEL_ID || '1486849626597490870';
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -40,8 +45,13 @@ async function getDiscordDMChannel() {
 }
 
 async function sendDiscordMessage(message) {
-    const channelId = await getDiscordDMChannel();
-    if (!channelId) return false;
+    // Use configured channel ID, fall back to DM if not set
+    let channelId = DISCORD_CHANNEL_ID;
+    if (!channelId) {
+        // Fallback to DM channel
+        channelId = await getDiscordDMChannel();
+        if (!channelId) return false;
+    }
     
     const url = `https://discord.com/api/v10/channels/${channelId}/messages`;
     try {
@@ -57,9 +67,13 @@ async function sendDiscordMessage(message) {
             const error = await response.text();
             throw new Error(`Discord API ${response.status}: ${error}`);
         }
-        console.log('Message sent via Discord.');
+        // Restore capability if it was previously degraded
+        setCapabilityStatus('discordMessaging', true, 'Discord API responded successfully').catch(() => {});
+        console.log(`Message sent via Discord to channel ${channelId}.`);
         return true;
     } catch (err) {
+        // Mark Discord messaging as degraded
+        setCapabilityStatus('discordMessaging', false, `Send failed: ${err.message}`).catch(() => {});
         console.error('Failed to send Discord message:', err.message);
         return false;
     }
@@ -112,7 +126,10 @@ async function sendMessage(message) {
     }
     
     if (!success) {
-        throw new Error('Failed to send message via any channel.');
+        // Queue for retry instead of dropping
+        enqueue(DISCORD_CHANNEL_ID || '', message, 'discord');
+        console.log('Message queued for retry via message_queue.jsonl');
+        return 'queued';
     }
     
     console.log(`Delivery channel: ${channel}`);

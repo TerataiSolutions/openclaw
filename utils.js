@@ -3,6 +3,8 @@ const TIMEZONE = 'America/New_York';
 const fs = require('fs');
 const path = require('path');
 const { sanitizeMemoryContent } = require('./security/input_sanitizer.js');
+const { setCapabilityStatus } = require('./cron/capability_monitor.js');
+const { generateEmbedding: generateEmbeddingFromLib } = require('./lib/clients/cohere');
 
 /**
  * Retry a Supabase REST call with one retry after delay.
@@ -39,12 +41,12 @@ function getEasternHour(date = new Date()) {
 }
 
 /**
- * Returns true if current Eastern time is within active hours (7:00 AM – 11:00 PM).
- * Quiet hours are 11:00 PM – 7:00 AM Eastern.
+ * Returns true if current Eastern time is within active hours (8:00 AM – 11:00 PM).
+ * Quiet hours are 11:00 PM – 8:00 AM Eastern.
  */
 function isActiveHours() {
     const hour = getEasternHour();
-    return hour >= 7 && hour < 23;
+    return hour >= 8 && hour < 23;
 }
 
 /**
@@ -52,7 +54,7 @@ function isActiveHours() {
  */
 function isQuietHours(date = new Date()) {
     const hour = getEasternHour(date);
-    return hour >= 23 || hour < 7;
+    return hour >= 23 || hour < 8;
 }
 
 /**
@@ -88,31 +90,15 @@ async function logLateSession(userMessage) {
 
 /**
  * Generate a Cohere embedding for text.
+ * Delegates to lib/clients/cohere with capability tracking.
  */
 async function generateEmbedding(text) {
-    const COHERE_ENDPOINT = process.env.COHERE_ENDPOINT || 'https://api.cohere.ai/v1/embed';
-    const COHERE_API_KEY = process.env.COHERE_API_KEY;
-    if (!COHERE_API_KEY) {
-        throw new Error('COHERE_API_KEY environment variable is not set');
+    try {
+        return await generateEmbeddingFromLib(text);
+    } catch (cohereError) {
+        setCapabilityStatus('semanticSearch', false, `Cohere API unavailable: ${cohereError.message}`);
+        throw cohereError;
     }
-    const response = await fetch(COHERE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${COHERE_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            texts: [text],
-            model: 'embed-english-v3.0',
-            input_type: 'search_document',
-        }),
-    });
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Cohere API error: ${err}`);
-    }
-    const data = await response.json();
-    return data.embeddings[0];
 }
 
 /**

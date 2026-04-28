@@ -1,116 +1,103 @@
-# Aether‑7 Memory System Backup
+# Aether — Personal AI Assistant Bot
 
-This repository contains all scripts, SQL files, and documentation for the Aether‑7 memory system (OpenClaw + Supabase + Cohere).
+Aether is a custom OpenClaw-based bot that manages memories, analyzes campaigns, and automates daily operations across Discord.
 
-## Structure
+## Quick Start (5 minutes)
 
-- **`scripts/`** – Core Node.js utilities for semantic search, embedding generation, and diagnostics.
-- **`*.sql`** – PostgreSQL functions and index definitions for vector search.
-- **`*.md`** – Documentation (TOOLS.md, AGENTS.md, SOUL.md, USER.md, IDENTITY.md, MEMORY.md).
-- **`*.js`** – Main application scripts (semantic_search_enhanced.js, check_zero_vectors.js).
+### Prerequisites
+- Node.js 22+
+- Environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `COHERE_API_KEY`, `DISCORD_BOT_TOKEN`
 
-## Key Scripts
+### Install and Run
+```bash
+cd /data/.openclaw/workspace
+NODE_ENV=development npm install
+npm test  # Verify all systems healthy
+```
+
+### First Change: Add a Cron Job
+
+1. Create `cron/my_job.js`:
+```javascript
+const { sendDiscordAlert } = require('../lib/clients/discord');
+
+async function runMyJob() {
+  console.log('My job is running');
+  await sendDiscordAlert('My job completed');
+}
+
+runMyJob().catch(err => {
+  console.error('Job failed:', err.message);
+  sendDiscordAlert(`❌ My job failed: ${err.message}`);
+});
+```
+
+2. Schedule it in `cron/index.js`:
+```javascript
+cron.schedule('0 10 * * *', () => {
+  runJob('my_job', '/data/.openclaw/workspace/cron/my_job.js');
+});
+```
+
+3. Test:
+```bash
+node /data/.openclaw/workspace/cron/my_job.js
+npm test
+```
+
+## Architecture
+
+- **cron/** — Scheduled jobs (18+ files), run by `start_cron.js` via `cron/index.js`
+- **lib/clients/** — External service abstractions (`supabase.js`, `discord.js`, `cohere.js`)
+- **scripts/** — One-time and batch operations
+- **test/** — Jest test suite (19 tests, 4 suites)
+- **security/** — Input sanitization, audit logging
+- **memory/** — Durable memory dumps (pre-compaction archives)
+
+## Key Files
 
 | File | Purpose |
 |------|---------|
-| `scripts/semantic_search_enhanced.js` | Primary semantic search interface (RPC + client‑side fallback) |
-| `scripts/check_zero_vectors.js` | Verify all memories have genuine Cohere embeddings |
-| `enable_vector_search.sql` | Create pgvector index and `semantic_search` function |
-| `update_sql_threshold.sql` | Update default threshold to 0.25 |
-| `TOOLS.md` | Complete memory‑system API reference |
+| `cron/index.js` | Cron schedule definitions (~25 schedules) |
+| `cron/start_cron.js` | Cron manager launcher with PID lock + zombie detection |
+| `cron/message_queue.js` | Persistent message retry queue (JSONL) |
+| `cron/dependency_healthcheck.js` | API health checks every 5 minutes |
+| `lib/clients/supabase.js` | Singleton Supabase client (service role) |
+| `lib/clients/discord.js` | Discord API wrapper (via message bridge) |
+| `lib/clients/cohere.js` | Cohere embedding generation |
 
-## Environment Variables
+## Common Tasks
 
-- `SUPABASE_URL` – Your Supabase project URL
-- `SUPABASE_ANON_KEY` – Supabase anonymous key (REST API)
-- `COHERE_API_KEY` – Cohere API key for embed‑english‑v3.0
-- `COHERE_ENDPOINT` – `https://api.cohere.ai/v1/embed` (legacy alias: `HUGGINGFACE_ENDPOINT`)
+- **Debug a failed cron job** → `docs/debugging-cron-jobs.md`
+- **Rotate credentials** → `RUNBOOK_CREDENTIAL_ROTATION.md`
+- **Add a new memory type** → Add validation in `security/input_sanitizer.js`, then test with `npm test`
 
-## Quick Start
-
-1. Run `enable_vector_search.sql` in Supabase SQL Editor.
-2. Set environment variables.
-3. Test search:
-   ```bash
-   node semantic_search_enhanced.js "your query" 10 0.25
-   ```
-
-## Memory Recovery System
-
-Aether‑7 includes a fully automated memory recovery system with:
-
-### Components
-
-1. **Daily Backups** (`cron/memory_backup.js`)
-   - Runs daily at 2:00 AM Eastern
-   - Saves all memories (with embeddings) to timestamped JSON files
-   - 7‑day retention, symlinked `memories_latest.json`
-
-2. **Backup Validation** (`scripts/validate_backup.js`)
-   - Validates backup file structure
-   - Compares backup with live database (`--compare` flag)
-   - Detects missing embeddings, zero‑vectors, discrepancies
-   - Returns health score and warnings
-
-3. **Memory Recovery** (`scripts/recover_memories.js`)
-   - Restores missing memories from backup
-   - Updates changed content (with `--force` flag)
-   - Regenerates missing embeddings (with `--regenerate` flag)
-   - Preserves UUIDs and relationships
-
-4. **Auto‑Recovery** (`cron/auto_recover.js`)
-   - Runs daily at 3:00 AM Eastern after backup
-   - Validates backup, runs recovery if significant discrepancies found
-   - Sends Discord/Telegram report
-   - Regenerates missing embeddings automatically
-
-5. **Memory Integrity Check** (`cron/memory_integrity_check.js`)
-   - Daily at 8:00 AM Eastern
-   - Checks for NULL/zero‑vector embeddings, test patterns
-   - Alerts on any integrity issues
-
-### Manual Recovery Commands
+## Testing
 
 ```bash
-# Validate latest backup
-node scripts/validate_backup.js --compare
-
-# Dry‑run recovery (shows what would be restored)
-node scripts/recover_memories.js
-
-# Force recovery (update changed memories)
-node scripts/recover_memories.js --force
-
-# Regenerate missing embeddings
-node scripts/recover_memories.js --regenerate
-
-# Recover from specific backup
-node scripts/recover_memories.js backups/memories_2026-04-12_123456.json
+npm test                           # Run all 19 unit tests
+npm test -- --watch                # Watch mode during development
+npm test -- --coverage             # Coverage report
 ```
 
-### Automated Recovery Flow
+## Deployment
 
-1. **2:00 AM** – Daily backup created
-2. **3:00 AM** – Auto‑recovery runs validation, triggers recovery if health score < 90%
-3. **8:00 AM** – Integrity check runs, alerts on any remaining issues
-4. **Alerting** – All failures and recovery actions reported via Discord/Telegram
+Changes to cron jobs take effect on the next scheduled run. For immediate testing:
+```bash
+node /data/.openclaw/workspace/cron/job_name.js
+```
 
-### Environment Variables
+Critical changes require:
+1. Write test case in `test/` directory
+2. Run `npm test` to verify
+3. Commit and push (Railway auto-deploys on git push)
 
-- `AUTO_RECOVERY_ON_FAILURE` – (Optional) Set to `true` to enable recovery when integrity check fails
-- `WEBHOOK_SECRET` – Required for memory‑insert webhook security
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` – For fallback messaging
+## Memory System
 
-## Commit History
+Aether includes automated memory backup, integrity checking, and recovery:
 
-- `HEAD` – Backup all scripts and configuration files
-
-## Notes
-
-- All 51 memories have genuine Cohere embeddings (zero zero‑vectors).
-- Default similarity threshold is 0.25 (aligned between JS and SQL).
-- The memory system is production‑ready with automated recovery.
-
----
-
-*This backup was generated by Aether‑7 on 2026‑04‑12.*
+- Daily backup at 2 AM ET (`cron/memory_backup.js`)
+- Auto-recovery at 3 AM ET (`cron/auto_recover.js`)
+- Integrity check at 8 AM ET (`cron/memory_integrity_check.js`)
+- Semantic search via `scripts/semantic_search_enhanced.js`
+- Fallback RPC + client-side cosine similarity

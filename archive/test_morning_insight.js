@@ -34,7 +34,7 @@ async function fetchOpenTasks() {
 }
 
 async function fetchRedFlagCampaigns() {
-    const url = `${SUPABASE_URL}/rest/v1/memories?type=eq.campaign_metric&tags=cs.{red_flag}&select=content,importance,created_at&order=importance.desc`;
+    const url = `${SUPABASE_URL}/rest/v1/memories?type=eq.campaign_metric&tags=cs.\{red_flag}&select=content,importance,created_at&order=importance.desc`;
     const response = await fetch(url, {
         headers: {
             'apikey': SUPABASE_ANON_KEY,

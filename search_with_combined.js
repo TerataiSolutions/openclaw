@@ -1,7 +1,6 @@
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const COHERE_API_KEY = process.env.COHERE_API_KEY;
-const COHERE_ENDPOINT = 'https://api.cohere.ai/v1/embed';
+const { generateEmbedding } = require('./lib/clients/cohere');
 
 async function fetchMemories() {
     const url = `${SUPABASE_URL}/rest/v1/memories?select=id,content,embedding,importance`;
@@ -23,24 +22,7 @@ async function fetchMemories() {
 }
 
 async function generateQueryEmbedding(text) {
-    const response = await fetch(COHERE_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${COHERE_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: 'embed-english-v3.0',
-            texts: [text],
-            input_type: 'search_query',
-        }),
-    });
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Cohere API error ${response.status}: ${errorText}`);
-    }
-    const result = await response.json();
-    return result.embeddings[0];
+    return generateEmbedding(text, 'search_query');
 }
 
 function cosineSimilarity(vecA, vecB) {
