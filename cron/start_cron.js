@@ -76,10 +76,9 @@ console.log(`Lock file written with PID ${process.pid}`);
 // Start AOF webhook listener
 startWebhookListener();
 
-// Start the cron manager
-const { startCronManager } = require('./index.js');
-startCronManager();
-console.log('Cron manager started (America/New_York timezone). Schedules active.');
+// Start the cron manager (self-executing — require() alone starts it)
+require('./index.js');
+console.log('Cron manager started (UTC timezone). Schedules active.');
 
 // NO restart loop -- the Railway start command handles restarts on crash
 // A restart loop here causes duplicate processes
