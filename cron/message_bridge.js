@@ -68,12 +68,12 @@ async function sendDiscordMessage(message) {
             throw new Error(`Discord API ${response.status}: ${error}`);
         }
         // Restore capability if it was previously degraded
-        setCapabilityStatus('discordMessaging', true, 'Discord API responded successfully').catch(() => {});
+        setCapabilityStatus('discordMessaging', true, 'Discord API responded successfully');
         console.log(`Message sent via Discord to channel ${channelId}.`);
         return true;
     } catch (err) {
         // Mark Discord messaging as degraded
-        setCapabilityStatus('discordMessaging', false, `Send failed: ${err.message}`).catch(() => {});
+        setCapabilityStatus('discordMessaging', false, `Send failed: ${err.message}`);
         console.error('Failed to send Discord message:', err.message);
         return false;
     }
