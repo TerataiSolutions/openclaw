@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-04-28T16:28:18.534Z",
+  "updatedAt": "2026-04-29T14:40:09.327Z",
   "entries": {
     "memory:memory/2026-04-27.md:262:290": {
       "key": "memory:memory/2026-04-27.md:262:290",
@@ -9,18 +9,21 @@
       "endLine": 290,
       "source": "memory",
       "snippet": "await sendDiscordAlert(`⚠️ Webhook server is DOWN. Last error: ${results.webhook.error}`); } } ``` ### Ingest Failure Alerting (scripts/ingest_transcript.js) - Added Discord alert when `failureCount > 0` after ingest completes: ```js await sendDiscordAlert(`⚠️ Transcript ingest completed with ${failureCount} errors. Check ... for details.`); ``` - Import is inline inside the `if` block to avoid loading discord client for zero-error case. ### Gateway Proxy Architecture - User provided Express proxy routes (`/api/fathom/webhook`, `/api/fathom/health`, `/api/fathom/assign`) that proxy to `localhost:4242`. - **Problem**: No Express server exists in the workspace. The OpenCl",
-      "recallCount": 1,
+      "recallCount": 3,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 1,
+      "totalScore": 3,
       "maxScore": 1,
       "firstRecalledAt": "2026-04-28T16:28:18.534Z",
-      "lastRecalledAt": "2026-04-28T16:28:18.534Z",
+      "lastRecalledAt": "2026-04-29T14:40:09.327Z",
       "queryHashes": [
-        "6adc5736f24e"
+        "6adc5736f24e",
+        "2b9db3d7da0f",
+        "b6d9f0d2a882"
       ],
       "recallDays": [
-        "2026-04-28"
+        "2026-04-28",
+        "2026-04-29"
       ],
       "conceptTags": [
         "gateway",
@@ -31,6 +34,226 @@
         "api/fathom/health",
         "api/fathom/assign",
         "await"
+      ]
+    },
+    "memory:memory/2026-04-27.md:281:293": {
+      "key": "memory:memory/2026-04-27.md:281:293",
+      "path": "memory/2026-04-27.md",
+      "startLine": 281,
+      "endLine": 293,
+      "source": "memory",
+      "snippet": "- **Pending**: No public path for Fathom to reach the webhook yet. ### Port Map (internal) - `0.0.0.0:8080` → OpenClaw gateway (the Railway public endpoint) - `127.0.0.1:4242` → Fathom webhook server (running, verified) - `127.0.0.1:18792` → AOF webhook listener ### Active State (end of session) - All 25 tests still pass. - Webhook server running (healthy on 4242). - Cron manager running with 33 scheduled jobs (+daily_summary, +memory_synthesis, +track_metrics, +session cleanup). - 0 open tasks, 0 stale items.",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-29T14:40:02.137Z",
+      "lastRecalledAt": "2026-04-29T14:40:09.327Z",
+      "queryHashes": [
+        "2b9db3d7da0f",
+        "b6d9f0d2a882"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "gateway",
+        "0.0.0.0",
+        "127.0.0.1",
+        "daily-summary",
+        "memory-synthesis",
+        "track-metrics",
+        "pending",
+        "public"
+      ]
+    },
+    "memory:memory/2026-04-27.md:231:247": {
+      "key": "memory:memory/2026-04-27.md:231:247",
+      "path": "memory/2026-04-27.md",
+      "startLine": 231,
+      "endLine": 247,
+      "source": "memory",
+      "snippet": "- Confirmed `createClient` usage: only `lib/clients/supabase.js` singleton (as verified in earlier consolidation). - Cohere endpoint usage: only `lib/clients/cohere.js`. - Discord API calls: 4 total (2 in `message_bridge.js`, 2 in `reports/weekly_report.js` for PDF uploads). await sendDiscordMessage(...)` syntax — requires options object, not positional args.) - **Supabase query chaining reduced** — `sb.from('memories').select('count').execute()` → `sb.from('memories').select('*', { count: 'exact', head: true }).limit(0)`. (Both work; second is canonical.) - **`createClient` instance reused** — singleton confirmed idempotent across all callers. - **Pattern detection surface moved** — fro",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-29T14:40:02.137Z",
+      "lastRecalledAt": "2026-04-29T14:40:09.327Z",
+      "queryHashes": [
+        "2b9db3d7da0f",
+        "b6d9f0d2a882"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "lib/clients/supabase.js",
+        "lib/clients/cohere.js",
+        "message-bridge.js",
+        "reports/weekly-report.js",
+        "sb.from",
+        "confirmed",
+        "createclient",
+        "usage"
+      ]
+    },
+    "memory:memory/2026-04-27.md:245:271": {
+      "key": "memory:memory/2026-04-27.md:245:271",
+      "path": "memory/2026-04-27.md",
+      "startLine": 245,
+      "endLine": 271,
+      "source": "memory",
+      "snippet": "- Exports: `{ startWebhookServer, stopWebhookServer, isWebhookRunning, getWebhookPID }`. - `startWebhookServer()` spawns `scripts/fathom_webhook.js` as child process, pipes stdout/stderr to `logs/webhook_server.log`, writes PID to `.webhook_server.pid`. - Auto-restarts on crash with 5-second delay (one restart at a time, no retry storms). - `stopWebhookServer()` sends SIGTERM. ### Wired into Cron Manager Lifecycle (cron/index.js) - Import: `const webhookManager = require('../lib/webhook-manager');` - Start: `webhookManager.startWebhookServer()` inside `startCronManager()`, after all cron jobs registered. - Shutdown: `process.on('SIGTERM')` handler calls `stopWebhookServer()` before `process",
+      "recallCount": 2,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 2,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-29T14:40:02.137Z",
+      "lastRecalledAt": "2026-04-29T14:40:09.327Z",
+      "queryHashes": [
+        "2b9db3d7da0f",
+        "b6d9f0d2a882"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "scripts/fathom-webhook.js",
+        "stdout/stderr",
+        "logs/webhook-server.log",
+        "webhook-server.pid",
+        "auto-restarts",
+        "5-second",
+        "cron/index.js",
+        "lib/webhook-manager"
+      ]
+    },
+    "memory:memory/2026-04-20.md:31:45": {
+      "key": "memory:memory/2026-04-20.md:31:45",
+      "path": "memory/2026-04-20.md",
+      "startLine": 31,
+      "endLine": 45,
+      "source": "memory",
+      "snippet": "- Bootstrap files within safe limits (AGENTS.md 4832, HEARTBEAT.md 9566, SOUL.md 3145, TOOLS.md 6084, SCHEDULES.md 4961, PROTOCOLS.md 3763 chars) - No open tasks, follow‑up memories, or stale tasks detected in heartbeat checks - Memory integrity check passed (no NULL/zero‑vector embeddings or test patterns) - Watchdog state updated with user timestamp ## 2026-04-20 02:19 UTC ### Memory Health & Post‑Ingest Analysis Integration - **Memory health module:** Saved user‑provided memory health code as `cron/memory_health.js`. Module provides comprehensive memory system diagnostics (counts by type, NULL embeddings, oldest unresolved task, etc.). - **Post‑ingest analysis:** Integrated `runPostInge",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-29T14:40:02.137Z",
+      "lastRecalledAt": "2026-04-29T14:40:02.137Z",
+      "queryHashes": [
+        "2b9db3d7da0f"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "embedding",
+        "embeddings",
+        "agents.md",
+        "heartbeat.md",
+        "soul.md",
+        "tools.md",
+        "schedules.md",
+        "protocols.md"
+      ]
+    },
+    "memory:memory/2026-04-19.md:1:25": {
+      "key": "memory:memory/2026-04-19.md:1:25",
+      "path": "memory/2026-04-19.md",
+      "startLine": 1,
+      "endLine": 25,
+      "source": "memory",
+      "snippet": "# Memory Log - 2026-04-19 ## 2026-04-19 18:35 UTC ### Service Role Key Reversion Decision - User requested reverting `mood_log_insertion_block.js` and `heartbeat_sent_insertion_block.js` back to `SUPABASE_ANON_KEY` for now. - Reason: Service role key needs to be retrieved from Supabase dashboard (Project Settings > API > service_role key) and added as a proper Railway environment variable externally. - Action: Revert not yet applied; files still contain mixed references (variable declarations changed but headers still using `SUPABASE_SERVICE_ROLE_KEY`). - Next step: After external key is set, swap key reference back. ### Deduplication Implementation - Applied 24-hour deduplication window",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-29T14:40:02.137Z",
+      "lastRecalledAt": "2026-04-29T14:40:02.137Z",
+      "queryHashes": [
+        "2b9db3d7da0f"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "mood-log-insertion-block.js",
+        "supabase-anon-key",
+        "service-role",
+        "supabase-service-role-key",
+        "24-hour",
+        "log",
+        "utc",
+        "service"
+      ]
+    },
+    "memory:memory/2026-04-18.md:69:85": {
+      "key": "memory:memory/2026-04-18.md:69:85",
+      "path": "memory/2026-04-18.md",
+      "startLine": 69,
+      "endLine": 85,
+      "source": "memory",
+      "snippet": "- **Workspace cron** (`/data/.openclaw/workspace/cron/start_cron.js`) – PID 376, schedules active. - **Webhook listener** (`/data/workspace/aof/webhook_listener.js`) – PID 384, listening on `127.0.0.1:18792`. Heartbeat system (morning briefing, stale‑task alerts, follow‑up nudges, mood check‑in, etc.) now operational. Quiet hours remain until 7:00 UTC. ## Memory Test **01:47 UTC** – Stored test memory `\"Webhook integration test - AOF Phase 2 complete.\"` with Cohere embedding to Supabase. Webhook listener was dead at insertion time; no Discord alert generated. ## Webhook Listener Deployment **Earlier** – Deployed complete `webhook_listener.js` (listens on port 18792, validates Supabase web",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-29T14:40:09.327Z",
+      "lastRecalledAt": "2026-04-29T14:40:09.327Z",
+      "queryHashes": [
+        "b6d9f0d2a882"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "embedding",
+        "127.0.0.1",
+        "webhook-listener.js",
+        "cron",
+        "data",
+        "openclaw",
+        "start-cron.js",
+        "pid"
+      ]
+    },
+    "memory:memory/2026-04-18.md:18:35": {
+      "key": "memory:memory/2026-04-18.md:18:35",
+      "path": "memory/2026-04-18.md",
+      "startLine": 18,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "**02:49 UTC** – Generated comprehensive architecture and infrastructure report covering all system layers, processes, schedules, environment variables, integrations, and security status. Report saved as `/data/.openclaw/workspace/architecture_report.md` and sent to user. Memory stored in Supabase with embedding. # 2026-04-18 ## System Health Restored **01:48 UTC** – Restarted all three heartbeat managers after quiet‑hours detection of dead PIDs: - **AOF cron** (`/data/workspace/aof/cron.js`) – PID 367, schedule active. - **Workspace cron** (`/data/.openclaw/workspace/cron/start_cron.js`) – PID 376, schedules active. - **Webhook listener** (`/data/workspace/aof/webhook_listener.js`) – PID 38",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 1,
+      "maxScore": 1,
+      "firstRecalledAt": "2026-04-29T14:40:09.327Z",
+      "lastRecalledAt": "2026-04-29T14:40:09.327Z",
+      "queryHashes": [
+        "b6d9f0d2a882"
+      ],
+      "recallDays": [
+        "2026-04-29"
+      ],
+      "conceptTags": [
+        "embedding",
+        "data/workspace/aof/cron.js",
+        "utc",
+        "generated",
+        "comprehensive",
+        "architecture",
+        "infrastructure",
+        "report"
       ]
     }
   }

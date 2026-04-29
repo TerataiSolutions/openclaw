@@ -2,7 +2,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { logJson } = require('../utils.js');
+let _logJson;
+function getLogJson() {
+  if (!_logJson) _logJson = require('../utils.js').logJson;
+  return _logJson;
+}
 
 const STATUS_FILE = path.join(__dirname, 'capability_status.json');
 
@@ -35,7 +39,7 @@ function setCapabilityStatus(cap, available, reason) {
   fs.writeFileSync(STATUS_FILE, JSON.stringify(current, null, 2), 'utf8');
 
   if (changed) {
-    logJson('warn', { event: 'capability_change', cap, available, reason, previousState: changed ? current[cap]?.available : 'unchanged' });
+    getLogJson()('warn', { event: 'capability_change', cap, available, reason, previousState: changed ? current[cap]?.available : 'unchanged' });
 
     if (!available) {
       // Send Discord alert
