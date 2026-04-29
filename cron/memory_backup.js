@@ -95,7 +95,7 @@ async function main() {
         if (fs.existsSync(latestPath)) {
             fs.unlinkSync(latestPath);
         }
-        fs.symlinkSync(filepath, latestPath);
+        fs.symlinkSync(path.resolve(filepath), latestPath);
         logJson('info', { message: 'Latest backup symlink updated' });
     } catch (err) {
         logJson('warn', { message: 'Could not create latest symlink', error: err.message });
