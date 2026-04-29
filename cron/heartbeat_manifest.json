@@ -360,7 +360,7 @@
       "id": "engagement_tracker",
       "category": "system_maintenance",
       "status": "live",
-      "schedule": "*/30 * * * *",
+      "schedule": "0 */4 * * *",
       "handler": "engagement_tracker.js",
       "execution_model": "runScript",
       "log_delivery": false,
