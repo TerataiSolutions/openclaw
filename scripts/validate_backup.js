@@ -65,7 +65,8 @@ function isZeroVector(embedding) {
 
 async function main() {
     const args = process.argv.slice(2);
-    const backupPath = args[0] || path.join(BACKUP_DIR, 'memories_latest.json');
+    const positionalArgs = args.filter(a => !a.startsWith('--'));
+    const backupPath = positionalArgs[0] || path.join(BACKUP_DIR, 'memories_latest.json');
     const compare = args.includes('--compare');
     
     console.log(`Validating backup: ${backupPath}`);

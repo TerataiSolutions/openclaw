@@ -20,8 +20,8 @@
     "lastChanged": "2026-04-27T06:37:30.720Z"
   },
   "discordMessaging": {
-    "available": false,
-    "reason": "Send failed: Cannot read properties of undefined (reading 'catch')",
-    "lastChanged": "2026-04-29T19:46:59.947Z"
+    "available": true,
+    "reason": "Discord API responded successfully",
+    "lastChanged": "2026-04-29T20:00:00.887Z"
   }
 }
