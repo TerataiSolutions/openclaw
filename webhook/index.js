@@ -14,6 +14,10 @@ app.get('/', (req, res) => {
     res.status(200).json({ status: 'ok', service: 'memory-insert-webhook' });
 });
 
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', ts: new Date().toISOString() });
+});
+
 // Supabase webhook endpoint
 app.post('/webhook/memory-insert', (req, res) => {
     handleMemoryInsert(req, res).catch(err => {

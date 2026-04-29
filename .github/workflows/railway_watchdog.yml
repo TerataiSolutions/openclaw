@@ -1,0 +1,45 @@
+name: Railway Watchdog
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health_check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Ping Railway health endpoint
+        id: ping
+        run: |
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 \
+            --retry 2 \
+            --retry-delay 3 \
+            https://openclaw-production-8a49.up.railway.app/health)
+
+          echo "status=$HTTP_STATUS" >> $GITHUB_OUTPUT
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "RAILWAY_DOWN=true" >> $GITHUB_ENV
+            echo "Railway returned HTTP $HTTP_STATUS"
+          else
+            echo "RAILWAY_DOWN=false" >> $GITHUB_ENV
+            echo "Railway healthy (HTTP $HTTP_STATUS)"
+          fi
+
+      - name: Alert Discord if Railway is down
+        if: env.RAILWAY_DOWN == 'true'
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          HTTP_STATUS=${{ steps.ping.outputs.status }}
+
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"content\": \"**[WATCHDOG] Railway is down**\nHealth check failed at \`${TIMESTAMP}\`\nHTTP status: \`${HTTP_STATUS}\`\nEndpoint: \`https://openclaw-production-8a49.up.railway.app/health\`\n\nAether-7 is offline. Cron engine, webhook server, and Discord bot are not running. Check Railway dashboard.\",
+              \"username\": \"Railway Watchdog\",
+              \"avatar_url\": \"https://railway.app/favicon.ico\"
+            }"
