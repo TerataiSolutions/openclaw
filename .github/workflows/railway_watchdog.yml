@@ -18,7 +18,7 @@ jobs:
             --max-time 10 \
             --retry 2 \
             --retry-delay 3 \
-            https://openclaw-production-8a49.up.railway.app/health)
+            https://openclaw-production-8a49.up.railway.app/healthz)
 
           echo "status=$HTTP_STATUS" >> $GITHUB_OUTPUT
 
@@ -39,7 +39,7 @@ jobs:
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "{
-              \"content\": \"**[WATCHDOG] Railway is down**\nHealth check failed at \`${TIMESTAMP}\`\nHTTP status: \`${HTTP_STATUS}\`\nEndpoint: \`https://openclaw-production-8a49.up.railway.app/health\`\n\nAether-7 is offline. Cron engine, webhook server, and Discord bot are not running. Check Railway dashboard.\",
+              \"content\": \"**[WATCHDOG] Railway is down**\nHealth check failed at \`${TIMESTAMP}\`\nHTTP status: \`${HTTP_STATUS}\`\nEndpoint: \`https://openclaw-production-8a49.up.railway.app/healthz\`\n\nAether-7 is offline. Cron engine, webhook server, and Discord bot are not running. Check Railway dashboard.\",
               \"username\": \"Railway Watchdog\",
               \"avatar_url\": \"https://railway.app/favicon.ico\"
             }"
